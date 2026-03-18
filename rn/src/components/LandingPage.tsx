@@ -21,7 +21,7 @@ export function LandingPage({
             className="absolute inset-0 m-auto"
             width="80"
             height="80"
-            viewBox="0 0 80 80"
+            viewBox="-3 -3 86 86"
             fill="none"
             stroke="white"
             strokeWidth="5"
