@@ -1,0 +1,7 @@
+node_modules/
+.next/
+out/
+ios/App/Pods/
+*.xcworkspace
+DerivedData/
+.DS_Store

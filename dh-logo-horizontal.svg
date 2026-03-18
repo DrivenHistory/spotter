@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 290" width="680" height="290">
+  <style>
+    .bold{ font-family: 'Barlow','Arial',sans-serif; font-weight:700; }
+    .reg { font-family: 'Barlow','Arial',sans-serif; font-weight:400; }
+  </style>
+
+  <path d="M21 240 A105 105 0 0 1 231 240" fill="none" stroke="#E85A4F" stroke-width="18" stroke-linecap="round"/>
+
+  <g stroke="#E85A4F" stroke-linecap="round" stroke-width="6">
+    <line x1="21"  y1="240" x2="40"  y2="240"/>
+    <line x1="52"  y1="166" x2="66"  y2="180"/>
+    <line x1="126" y1="135" x2="126" y2="154"/>
+    <line x1="200" y1="166" x2="186" y2="180"/>
+    <line x1="231" y1="240" x2="212" y2="240"/>
+  </g>
+
+  <polygon points="199,179  122,235  130,245" fill="#E85A4F"/>
+  <circle cx="126" cy="240" r="16" fill="#E85A4F"/>
+  <circle cx="126" cy="240" r="7"  fill="#ffffff"/>
+
+  <text x="258" y="205" text-anchor="start" class="bold" font-size="86" fill="#ffffff" letter-spacing="2">DRIVEN</text>
+  <text x="262" y="248" text-anchor="start" class="bold" font-size="38" fill="#ffffff" letter-spacing="14">HISTORY<tspan class="reg" font-size="24" letter-spacing="1" dx="2">.com</tspan></text>
+</svg>
