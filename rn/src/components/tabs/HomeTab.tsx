@@ -2,17 +2,28 @@
 
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
-import { spotter, type SpottedCar } from "@/lib/api";
-import { points, rarityKey } from "@/lib/rarity";
+import { spotter, user as userApi, type SpottedCar } from "@/lib/api";
+import { points } from "@/lib/rarity";
 import { relativeTime } from "@/lib/time";
-import { RarityBadge, StatBox } from "@/components/ui";
+import { CarDetailView } from "@/components/CarDetailView";
+import { InviteFriendsCard } from "@/components/groups/InviteFriendsCard";
+import { CreateGroupSheet } from "@/components/groups/CreateGroupSheet";
+import { InviteSheet } from "@/components/groups/InviteSheet";
+import { GroupPickerSheet } from "@/components/groups/GroupPickerSheet";
+import { useGroups } from "@/lib/groups-context";
+import type { Group } from "@/lib/api";
 
 export function HomeTab({ onProfile }: { onProfile?: () => void }) {
   const { user } = useAuth();
+  const { myGroups } = useGroups();
   const [feed, setFeed] = useState<SpottedCar[]>([]);
   const [weeklySpots, setWeeklySpots] = useState<SpottedCar[]>([]);
-  const [weeklyStats, setWeeklyStats] = useState<{ totalSpotted: number; uniqueSpotters: number; rareFinds: number } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [dbDisplayName, setDbDisplayName] = useState<string | null>(null);
+  const [selectedCar, setSelectedCar] = useState<SpottedCar | null>(null);
+  const [showGroupPicker, setShowGroupPicker] = useState(false);
+  const [showCreateGroup, setShowCreateGroup] = useState(false);
+  const [inviteGroup, setInviteGroup] = useState<Group | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -23,110 +34,155 @@ export function HomeTab({ onProfile }: { onProfile?: () => void }) {
         ]);
         setFeed(feedRes.spots);
         setWeeklySpots(weeklyRes.spots);
-        setWeeklyStats(weeklyRes.stats);
       } catch { /* ignore */ }
       setLoading(false);
     }
     load();
   }, []);
 
-  const firstName = user?.name?.split(" ")[0] ?? "Spotter";
+  useEffect(() => {
+    if (!user) return;
+    (async () => {
+      try {
+        const s = await userApi.getSettings();
+        if (s.displayName) setDbDisplayName(s.displayName);
+      } catch { /* ignore */ }
+    })();
+  }, [user]);
+
+  const firstName = (dbDisplayName ?? user?.name ?? "Spotter").split(" ")[0];
   const initials = (() => {
-    const name = user?.name ?? "S";
+    const name = dbDisplayName ?? user?.name ?? "S";
     const parts = name.split(" ");
     return parts.length >= 2 ? (parts[0][0] + parts[1][0]).toUpperCase() : name.slice(0, 2).toUpperCase();
   })();
 
+  const hour = new Date().getHours();
+  const timeGreeting = hour < 12 ? "Good morning," : hour < 18 ? "Good afternoon," : "Good evening,";
+
+  if (selectedCar) {
+    return <CarDetailView car={selectedCar} onBack={() => setSelectedCar(null)} />;
+  }
+
   return (
-    <div className="h-full overflow-y-auto scrollbar-hide px-6 pt-2 pb-32">
+    <div className="h-full overflow-y-auto scrollbar-hide px-5 pb-24">
       {/* Header with profile avatar */}
       <div className="flex items-center justify-between mb-5">
-        <h1 className="text-2xl font-semibold text-text-primary font-display">
-          Hey, {firstName}!
-        </h1>
+        <div className="flex flex-col gap-1">
+          <span className="text-[14px] text-text-secondary">{timeGreeting}</span>
+          <span className="text-[28px] font-bold text-text-primary">{firstName} 👋</span>
+        </div>
         <button onClick={onProfile} className="w-10 h-10 rounded-full bg-accent-coral flex items-center justify-center shrink-0">
           <span className="text-sm font-bold text-white">{initials}</span>
         </button>
       </div>
 
-      {/* Latest carousel */}
+      {/* Latest Spots carousel */}
       {weeklySpots.length > 0 && (
-        <div className="mb-6">
-          <h2 className="text-sm font-semibold text-text-primary mb-3">Latest</h2>
-          <div className="flex gap-3 overflow-x-auto scrollbar-hide -mx-6 px-6">
+        <div className="mb-5">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-[18px] font-semibold text-text-primary">Latest Spots</h2>
+            <span className="text-[14px] text-accent-coral">See All</span>
+          </div>
+          {/* Carousel breaks out of px-5 to scroll edge-to-edge */}
+          <div className="flex gap-3 overflow-x-auto scrollbar-hide -mx-5 px-5">
             {weeklySpots.slice(0, 10).map((car) => (
-              <WeeklyCard key={car.id} car={car} />
+              <WeeklyCard key={car.id} car={car} onTap={() => setSelectedCar(car)} />
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Invite Friends card */}
+      {user && (
+        <div className="mb-5">
+          <InviteFriendsCard onTap={() => {
+            if (myGroups.length > 0) setShowGroupPicker(true);
+            else setShowCreateGroup(true);
+          }} />
         </div>
       )}
 
       {/* Community Spots */}
-      <div>
-        <h2 className="text-sm font-semibold text-text-primary mb-3">Community Spots</h2>
+      <h2 className="text-[18px] font-semibold text-text-primary mb-2">Community Spots</h2>
 
-        {weeklyStats && (
-          <div className="flex gap-2 mb-4">
-            <StatBox value={String(weeklyStats.totalSpotted)} label="Spotted" />
-            <StatBox value={String(weeklyStats.uniqueSpotters)} label="Spotters" />
-            <StatBox value={String(weeklyStats.rareFinds)} label="Rare" valueColor="text-rarity-rare" />
-          </div>
-        )}
-
-        {loading ? (
-          <div className="flex justify-center py-12">
-            <div className="w-6 h-6 border-2 border-accent-coral border-t-transparent rounded-full animate-spin" />
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {feed.map((car) => (
-              <SpotRow key={car.id} car={car} />
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function WeeklyCard({ car }: { car: SpottedCar }) {
-  const displayName = [car.year, car.make, car.model].filter(Boolean).join(" ");
-  return (
-    <div className="shrink-0 w-[200px] rounded-[16px] bg-bg-card border border-border-subtle overflow-hidden">
-      {car.imageUrl ? (
-        <img src={car.imageUrl} alt={displayName} className="w-full h-[120px] object-cover" />
-      ) : (
-        <div className="w-full h-[120px] bg-bg-elevated flex items-center justify-center text-text-tertiary text-xs">No photo</div>
-      )}
-      <div className="p-3">
-        <p className="text-[13px] font-semibold text-text-primary truncate">{displayName}</p>
-        <div className="flex items-center justify-between mt-1">
-          {car.rarity && <RarityBadge rarity={car.rarity} />}
-          <span className="text-[10px] text-text-muted">{relativeTime(car.createdAt)}</span>
+      {loading ? (
+        <div className="flex justify-center py-12">
+          <div className="w-6 h-6 border-2 border-accent-coral border-t-transparent rounded-full animate-spin" />
         </div>
-      </div>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {feed.map((car) => (
+            <SpotRow key={car.id} car={car} onTap={() => setSelectedCar(car)} />
+          ))}
+        </div>
+      )}
+
+      {/* Group sheets */}
+      <GroupPickerSheet
+        open={showGroupPicker}
+        onClose={() => setShowGroupPicker(false)}
+        groups={myGroups}
+        onSelectGroup={(group) => {
+          setShowGroupPicker(false);
+          setInviteGroup(group);
+        }}
+        onCreateNew={() => {
+          setShowGroupPicker(false);
+          setShowCreateGroup(true);
+        }}
+      />
+      <CreateGroupSheet
+        open={showCreateGroup}
+        onClose={() => setShowCreateGroup(false)}
+        onCreated={(group) => {
+          setShowCreateGroup(false);
+          setInviteGroup(group);
+        }}
+      />
+      {inviteGroup && (
+        <InviteSheet
+          open={!!inviteGroup}
+          onClose={() => setInviteGroup(null)}
+          group={inviteGroup}
+        />
+      )}
     </div>
   );
 }
 
-function SpotRow({ car }: { car: SpottedCar }) {
+function WeeklyCard({ car, onTap }: { car: SpottedCar; onTap: () => void }) {
+  const displayName = [car.year, car.make, car.model].filter(Boolean).join(" ");
+  const rarityLabel = car.rarity ? `${car.rarity} · ${points(car.rarity)} pts` : null;
+  const rarityColor = car.rarity ? `text-rarity-${car.rarity.toLowerCase().replace(/\s+/g, "-")}` : "";
+  return (
+    <button onClick={onTap} className="shrink-0 w-[150px] rounded-[16px] bg-bg-card overflow-hidden flex flex-col text-left">
+      {car.imageUrl ? (
+        <img src={car.imageUrl} alt={displayName} className="w-full h-[100px] object-cover shrink-0" />
+      ) : (
+        <div className="w-full h-[100px] bg-bg-elevated flex items-center justify-center text-text-tertiary text-xs shrink-0">No photo</div>
+      )}
+      <div className="flex flex-col gap-0.5 px-3 py-2">
+        <p className="text-[13px] font-semibold text-text-primary truncate">{displayName}</p>
+        {rarityLabel && <span className={`text-[11px] ${rarityColor}`}>{rarityLabel}</span>}
+      </div>
+    </button>
+  );
+}
+
+function SpotRow({ car, onTap }: { car: SpottedCar; onTap: () => void }) {
   const displayName = [car.year, car.make, car.model].filter(Boolean).join(" ");
   return (
-    <div className="flex gap-3 p-3 bg-bg-card rounded-[14px] border border-border-subtle">
+    <button onClick={onTap} className="flex items-center gap-3 p-3 bg-bg-card rounded-[12px] w-full text-left">
       {car.imageUrl ? (
-        <img src={car.imageUrl} alt="" className="w-14 h-14 rounded-[10px] object-cover shrink-0" />
+        <img src={car.imageUrl} alt="" className="w-14 h-14 rounded-[8px] object-cover shrink-0" />
       ) : (
-        <div className="w-14 h-14 rounded-[10px] bg-bg-elevated shrink-0" />
+        <div className="w-14 h-14 rounded-[8px] bg-bg-elevated shrink-0" />
       )}
       <div className="flex-1 min-w-0">
-        <p className="text-[13px] font-semibold text-text-primary truncate">{displayName}</p>
-        <p className="text-[11px] text-text-muted mt-0.5">by {car.spotterName}</p>
-        <div className="flex items-center gap-2 mt-1">
-          {car.rarity && <RarityBadge rarity={car.rarity} />}
-          <span className="text-[11px] text-accent-amber font-medium">{points(car.rarity)} pts</span>
-        </div>
+        <p className="text-[14px] font-semibold text-text-primary truncate">{displayName}</p>
+        <p className="text-[12px] text-text-secondary mt-0.5">Spotted by {car.spotterName || car.spotterEmail.split("@")[0]} · {relativeTime(car.createdAt)}</p>
       </div>
-      <span className="text-[10px] text-text-muted shrink-0 mt-1">{relativeTime(car.createdAt)}</span>
-    </div>
+    </button>
   );
 }

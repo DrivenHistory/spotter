@@ -18,7 +18,13 @@ async function request<T>(
   });
   if (!res.ok) {
     const text = await res.text().catch(() => "");
-    throw new APIError(res.status, text || `HTTP ${res.status}`);
+    let message = text || `HTTP ${res.status}`;
+    try {
+      const json = JSON.parse(text);
+      if (json.error) message = json.error;
+      else if (json.message) message = json.message;
+    } catch { /* not JSON, use raw text */ }
+    throw new APIError(res.status, message);
   }
   return res.json();
 }
@@ -68,6 +74,101 @@ export const user = {
     }),
 };
 
+// ── Groups ──
+export interface Group {
+  id: string;
+  name: string;
+  icon: string;
+  creatorEmail: string;
+  creatorName: string;
+  memberCount: number;
+  totalSpots: number;
+  totalPoints: number;
+  createdAt: string;
+}
+
+export interface GroupMembership {
+  group: Group;
+  role: "creator" | "member";
+  joinedAt: string;
+}
+
+export interface GroupInvite {
+  id: string;
+  groupId: string;
+  groupName: string;
+  groupIcon: string;
+  inviterName: string;
+  inviterEmail: string;
+  createdAt: string;
+}
+
+export interface GroupLeaderboardEntry {
+  group: Group;
+  rank: number;
+}
+
+export interface GroupMemberEntry {
+  email: string;
+  name: string;
+  totalPoints: number;
+  totalSpots: number;
+  rank: number;
+}
+
+export interface InviteLink {
+  code: string;
+  url: string;
+}
+
+export interface UserSearchResult {
+  email: string;
+  displayName: string;
+}
+
+export const groups = {
+  create: (name: string, icon: string) =>
+    request<{ group: Group }>("/api/groups", {
+      method: "POST",
+      body: JSON.stringify({ name, icon }),
+    }),
+  getMyGroups: () =>
+    request<{ memberships: GroupMembership[] }>("/api/groups/mine"),
+  getMyInvites: () =>
+    request<{ invites: GroupInvite[] }>("/api/groups/invites"),
+  acceptInvite: (inviteId: string) =>
+    request<{ ok: boolean }>(`/api/groups/invites/${inviteId}/accept`, {
+      method: "POST",
+    }),
+  declineInvite: (inviteId: string) =>
+    request<{ ok: boolean }>(`/api/groups/invites/${inviteId}/decline`, {
+      method: "POST",
+    }),
+  leave: (groupId: string) =>
+    request<{ ok: boolean }>(`/api/groups/${groupId}/leave`, {
+      method: "POST",
+    }),
+  getInviteLink: (groupId: string) =>
+    request<InviteLink>(`/api/groups/${groupId}/invite-link`, {
+      method: "POST",
+    }),
+  inviteUser: (groupId: string, email: string) =>
+    request<{ ok: boolean }>(`/api/groups/${groupId}/invite`, {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    }),
+  searchUsers: (query: string) =>
+    request<{ users: UserSearchResult[] }>(
+      `/api/groups/search-users?q=${encodeURIComponent(query)}`
+    ),
+  getGroupLeaderboard: () =>
+    request<{ rankings: GroupLeaderboardEntry[] }>("/api/groups/leaderboard"),
+  getGroupMembers: (groupId: string) =>
+    request<{ members: GroupMemberEntry[] }>(
+      `/api/groups/${groupId}/members`
+    ),
+};
+
 // ── Spotter ──
 export interface SpottedCar {
   id: string;
@@ -113,7 +214,16 @@ export const spotter = {
       credentials: "include",
       body: form,
     });
-    if (!res.ok) throw new APIError(res.status, await res.text());
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      let message = text || `HTTP ${res.status}`;
+      try {
+        const json = JSON.parse(text);
+        if (json.error) message = json.error;
+        else if (json.message) message = json.message;
+      } catch { /* not JSON */ }
+      throw new APIError(res.status, message);
+    }
     return res.json();
   },
   save: (data: Omit<IdentifyResult, "confidence"> & { confidence: number; spottedAt?: string }) =>

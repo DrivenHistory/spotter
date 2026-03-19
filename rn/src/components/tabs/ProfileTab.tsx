@@ -1,9 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ArrowLeft, Pencil, Globe, LogOut, Trash2, ChevronRight } from "lucide-react";
+import { ArrowLeft, Pencil, Globe, LogOut, Trash2, ChevronRight, Check, X, UserPlus } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
-import { user as userApi } from "@/lib/api";
+import { useGroups } from "@/lib/groups-context";
+import { user as userApi, spotter, type Group } from "@/lib/api";
+import { points } from "@/lib/rarity";
+import { InviteSheet } from "@/components/groups/InviteSheet";
 
 interface Settings {
   displayName: string | null;
@@ -13,10 +16,14 @@ interface Settings {
 
 export function ProfileTab({ onBack }: { onBack?: () => void }) {
   const { user, logout, deleteAccount } = useAuth();
+  const { myGroups, pendingInvites, acceptInvite, declineInvite, leaveGroup } = useGroups();
   const [settings, setSettings] = useState<Settings | null>(null);
   const [showEdit, setShowEdit] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState<string | null>(null);
+  const [inviteGroup, setInviteGroup] = useState<Group | null>(null);
+  const [stats, setStats] = useState<{ spotted: number; pts: number; rank: number | null }>({ spotted: 0, pts: 0, rank: null });
 
   useEffect(() => {
     (async () => {
@@ -27,6 +34,27 @@ export function ProfileTab({ onBack }: { onBack?: () => void }) {
     })();
   }, []);
 
+  useEffect(() => {
+    if (!user) return;
+    (async () => {
+      try {
+        const { spots } = await spotter.getFeed();
+        // Compute all-time points per spotter for ranking
+        const pointsBySpotter: Record<string, number> = {};
+        for (const s of spots) {
+          const key = s.spotterEmail.toLowerCase();
+          pointsBySpotter[key] = (pointsBySpotter[key] ?? 0) + points(s.rarity);
+        }
+        const sorted = Object.entries(pointsBySpotter).sort((a, b) => b[1] - a[1]);
+        const myEmail = user.email.toLowerCase();
+        const rankIndex = sorted.findIndex(([email]) => email === myEmail);
+        const mySpots = spots.filter((s) => s.spotterEmail.toLowerCase() === myEmail);
+        const totalPts = mySpots.reduce((s, c) => s + points(c.rarity), 0);
+        setStats({ spotted: mySpots.length, pts: totalPts, rank: rankIndex >= 0 ? rankIndex + 1 : null });
+      } catch { /* ignore */ }
+    })();
+  }, [user]);
+
   const displayName = settings?.displayName ?? user?.name ?? "—";
   const initials = (() => {
     const parts = displayName.split(" ");
@@ -36,62 +64,146 @@ export function ProfileTab({ onBack }: { onBack?: () => void }) {
   })();
 
   return (
-    <div className="h-full overflow-y-auto scrollbar-hide px-6 pt-2 pb-32">
+    <div className="h-full overflow-y-auto scrollbar-hide px-5 pb-24">
       {/* Header with back button */}
-      <div className="flex items-center gap-3 mb-5">
-        {onBack && (
-          <button onClick={onBack} className="text-text-primary">
-            <ArrowLeft size={24} />
-          </button>
-        )}
-        <h1 className="text-2xl font-semibold text-text-primary font-display">Profile</h1>
-      </div>
+      {onBack && (
+        <button onClick={onBack} className="text-text-primary mb-4">
+          <ArrowLeft size={24} />
+        </button>
+      )}
 
-      {/* Avatar card */}
-      <div className="flex flex-col items-center py-5 bg-bg-card rounded-[16px] border border-border-subtle mb-5">
-        <div className="w-[72px] h-[72px] rounded-full bg-accent-coral/15 flex items-center justify-center mb-3">
-          <span className="text-2xl font-bold text-accent-coral">{initials}</span>
+      {/* Avatar + info */}
+      <div className="flex flex-col items-center gap-3 mb-5">
+        <div className="w-20 h-20 rounded-full bg-accent-coral flex items-center justify-center">
+          <span className="text-[28px] font-bold text-white">{initials}</span>
         </div>
-        <p className="text-[18px] font-semibold text-text-primary">{displayName}</p>
-        <p className="text-[13px] text-text-muted mt-0.5">{user?.email}</p>
+        <p className="text-[22px] font-bold text-text-primary">{displayName}</p>
+        <p className="text-[14px] text-text-secondary">{user?.email}</p>
+
+        {/* Stats row */}
+        <div className="flex items-center gap-6">
+          <div className="flex flex-col items-center gap-0.5">
+            <span className="text-[20px] font-bold text-text-primary">{stats.spotted}</span>
+            <span className="text-[12px] text-text-secondary">Spotted</span>
+          </div>
+          <div className="flex flex-col items-center gap-0.5">
+            <span className="text-[20px] font-bold text-accent-coral">{stats.pts}</span>
+            <span className="text-[12px] text-text-secondary">Points</span>
+          </div>
+          <div className="flex flex-col items-center gap-0.5">
+            <span className="text-[20px] font-bold text-[#FFD700]">{stats.rank ? `#${stats.rank}` : "—"}</span>
+            <span className="text-[12px] text-text-secondary">Rank</span>
+          </div>
+        </div>
       </div>
 
-      {/* Settings rows */}
-      <div className="bg-bg-card rounded-[16px] border border-border-subtle overflow-hidden mb-5">
-        <SettingsRow icon={<Pencil size={16} />} label="Edit Profile" onClick={() => setShowEdit(true)} />
-        <div className="h-px bg-border-subtle mx-4" />
-        <SettingsRow
-          icon={<Globe size={16} />}
-          label="Open Driven History"
-          onClick={() => window.open("https://www.drivenhistory.com", "_blank")}
-        />
-        <div className="h-px bg-border-subtle mx-4" />
-        <SettingsRow
-          icon={<LogOut size={16} />}
-          label="Sign Out"
-          color="text-text-secondary"
-          onClick={() => setShowLogoutConfirm(true)}
-        />
-      </div>
+      {/* Pending Invites */}
+      {pendingInvites.length > 0 && (
+        <div className="mb-5">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-[18px] font-semibold text-text-primary">Pending Invites</h3>
+            <span className="w-6 h-6 rounded-full bg-accent-coral flex items-center justify-center text-[12px] font-bold text-white">
+              {pendingInvites.length}
+            </span>
+          </div>
+          <div className="flex flex-col gap-3">
+            {pendingInvites.map((inv) => (
+              <div key={inv.id} className="flex items-center gap-3 p-3.5 bg-bg-card rounded-[12px]">
+                <div className="w-10 h-10 rounded-[12px] bg-bg-elevated flex items-center justify-center text-[20px] shrink-0">
+                  {inv.groupIcon}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[14px] font-semibold text-text-primary truncate">{inv.groupName}</p>
+                  <p className="text-[12px] text-text-secondary">Invited by {inv.inviterName}</p>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => acceptInvite(inv.id).catch(() => {})}
+                    className="w-9 h-9 rounded-[8px] bg-accent-coral flex items-center justify-center"
+                  >
+                    <Check size={18} className="text-white" />
+                  </button>
+                  <button
+                    onClick={() => declineInvite(inv.id).catch(() => {})}
+                    className="w-9 h-9 rounded-[8px] bg-bg-elevated flex items-center justify-center"
+                  >
+                    <X size={18} className="text-text-muted" />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
-      {/* Powered by DH */}
-      <div className="flex items-center justify-center gap-2 mb-5 opacity-50">
-        <span className="text-[11px] text-text-muted">Powered by</span>
-        <span className="text-[11px] font-bold text-text-secondary tracking-wide">DRIVEN HISTORY</span>
+      {/* Group Memberships */}
+      {myGroups.length > 0 && (
+        <div className="mb-5">
+          <h3 className="text-[18px] font-semibold text-text-primary mb-3">Group Memberships</h3>
+          <div className="flex flex-col gap-3">
+            {myGroups.map((m) => (
+              <div key={m.group.id} className="flex items-center gap-3 p-3.5 bg-bg-card rounded-[12px]">
+                <div className="w-10 h-10 rounded-[12px] bg-bg-elevated flex items-center justify-center text-[20px] shrink-0">
+                  {m.group.icon}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[14px] font-semibold text-text-primary truncate">{m.group.name}</p>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[12px] text-text-secondary">{m.group.memberCount} members</span>
+                    <span className="text-[12px] text-text-muted">·</span>
+                    <span className={`text-[12px] font-semibold ${m.role === "creator" ? "text-accent-coral" : "text-text-secondary"}`}>
+                      {m.role === "creator" ? "Creator" : "Member"}
+                    </span>
+                  </div>
+                </div>
+                {m.role === "creator" ? (
+                  <button
+                    onClick={() => setInviteGroup(m.group)}
+                    className="w-9 h-9 rounded-[8px] bg-bg-elevated flex items-center justify-center"
+                  >
+                    <UserPlus size={18} className="text-accent-coral" />
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => setShowLeaveConfirm(m.group.id)}
+                    className="w-9 h-9 rounded-[8px] bg-danger-red/10 flex items-center justify-center"
+                  >
+                    <LogOut size={16} className="text-danger-red" />
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Settings card */}
+      <div className="bg-bg-card rounded-[16px] overflow-hidden mb-5">
+        <SettingsRow icon={<Pencil size={20} />} label="Edit Profile" onClick={() => setShowEdit(true)} />
+        <div className="h-px bg-[#27272A]" />
+        <SettingsRow icon={<Globe size={20} />} label="Open Driven History" onClick={() => window.open("https://www.drivenhistory.com", "_blank")} />
+        <div className="h-px bg-[#27272A]" />
+        <SettingsRow icon={<LogOut size={20} />} label="Sign Out" onClick={() => setShowLogoutConfirm(true)} />
       </div>
 
       {/* Danger zone */}
-      <div className="p-4 bg-bg-card rounded-[16px] border border-danger-red/20">
-        <p className="text-[13px] font-semibold text-danger-red mb-3">Danger Zone</p>
+      <div className="bg-bg-card rounded-[16px] border border-danger-red/20 overflow-hidden mb-5">
         <button
           onClick={() => setShowDeleteConfirm(true)}
-          className="w-full py-3 flex items-center justify-center gap-2 bg-danger-red/10 rounded-[12px] border border-danger-red/30 text-danger-red text-[14px] font-medium"
+          className="w-full flex items-center justify-between px-5 py-4"
         >
-          <Trash2 size={16} /> Delete Account
+          <div className="flex items-center gap-3">
+            <Trash2 size={20} className="text-danger-red" />
+            <span className="text-[15px] text-danger-red">Delete Account</span>
+          </div>
+          <ChevronRight size={20} className="text-danger-red/50" />
         </button>
-        <p className="text-[11px] text-text-muted mt-3">
-          This will permanently delete your account and all spotted cars. This action cannot be undone.
-        </p>
+      </div>
+
+      {/* Powered by DH */}
+      <div className="flex items-center justify-center gap-1.5">
+        <span className="text-[11px] text-text-muted">Powered by</span>
+        <img src="/dh-logo-horizontal.png" alt="Driven History" className="w-[120px] h-[50px] object-contain opacity-50" />
       </div>
 
       {/* Logout confirm */}
@@ -117,6 +229,27 @@ export function ProfileTab({ onBack }: { onBack?: () => void }) {
         />
       )}
 
+      {/* Leave group confirm */}
+      {showLeaveConfirm && (
+        <ConfirmModal
+          title="Leave Group"
+          message="Are you sure you want to leave this group? You'll need a new invite to rejoin."
+          confirmLabel="Leave"
+          danger
+          onCancel={() => setShowLeaveConfirm(null)}
+          onConfirm={async () => { await leaveGroup(showLeaveConfirm).catch(() => {}); setShowLeaveConfirm(null); }}
+        />
+      )}
+
+      {/* Invite to group sheet */}
+      {inviteGroup && (
+        <InviteSheet
+          open={!!inviteGroup}
+          onClose={() => setInviteGroup(null)}
+          group={inviteGroup}
+        />
+      )}
+
       {/* Edit profile sheet */}
       {showEdit && (
         <EditProfileSheet
@@ -132,19 +265,19 @@ export function ProfileTab({ onBack }: { onBack?: () => void }) {
 function SettingsRow({
   icon,
   label,
-  color = "text-text-primary",
   onClick,
 }: {
   icon: React.ReactNode;
   label: string;
-  color?: string;
   onClick: () => void;
 }) {
   return (
-    <button onClick={onClick} className="w-full flex items-center gap-3 px-4 py-3.5">
-      <span className={color}>{icon}</span>
-      <span className={`flex-1 text-left text-[15px] font-medium ${color}`}>{label}</span>
-      <ChevronRight size={12} className="text-text-tertiary" />
+    <button onClick={onClick} className="w-full flex items-center justify-between px-5 py-4">
+      <div className="flex items-center gap-3">
+        <span className="text-text-secondary">{icon}</span>
+        <span className="text-[15px] text-text-primary">{label}</span>
+      </div>
+      <ChevronRight size={20} className="text-text-muted" />
     </button>
   );
 }
@@ -215,7 +348,7 @@ function EditProfileSheet({
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60" onClick={onClose}>
       <div className="w-full max-w-md bg-bg-page rounded-t-[24px] p-6 safe-bottom" onClick={(e) => e.stopPropagation()}>
         <div className="w-10 h-1 bg-border-strong rounded-full mx-auto mb-5" />
-        <h3 className="text-xl font-semibold text-text-primary font-display text-center mb-5">Edit Profile</h3>
+        <h3 className="text-xl font-semibold text-text-primary text-center mb-5">Edit Profile</h3>
 
         <div className="space-y-4 mb-5">
           <div>

@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { AuthProvider } from "@/lib/auth-context";
+import { GroupsProvider } from "@/lib/groups-context";
 
 export const metadata: Metadata = {
   title: "Spotter",
@@ -20,7 +21,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body className="antialiased">
-        <AuthProvider>{children}</AuthProvider>
+        <AuthProvider><GroupsProvider>{children}</GroupsProvider></AuthProvider>
       </body>
     </html>
   );
