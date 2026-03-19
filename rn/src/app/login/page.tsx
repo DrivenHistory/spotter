@@ -1,13 +1,16 @@
 "use client";
 
 import { useState } from "react";
+import { ArrowLeft } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
   const { login, error, isLoading, clearError } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -15,72 +18,76 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex flex-col h-dvh bg-bg-page safe-top safe-bottom">
-      <div className="flex-1 flex flex-col justify-center px-6">
-        {/* Logo */}
-        <div className="flex flex-col items-center mb-10">
-          <div className="w-16 h-16 rounded-full bg-accent-coral/20 flex items-center justify-center mb-4">
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#E85A4F" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
-              <circle cx="12" cy="12" r="3" />
-            </svg>
-          </div>
-          <h1 className="text-2xl font-semibold tracking-[0.15em] text-text-primary font-display">
-            SPOTTER
-          </h1>
-        </div>
-
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1.5">Email</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => { setEmail(e.target.value); clearError(); }}
-              className="w-full px-4 py-3.5 bg-bg-card border border-border-subtle rounded-[12px] text-text-primary text-[15px] outline-none focus:border-accent-coral transition-colors"
-              placeholder="you@email.com"
-              autoComplete="email"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1.5">Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => { setPassword(e.target.value); clearError(); }}
-              className="w-full px-4 py-3.5 bg-bg-card border border-border-subtle rounded-[12px] text-text-primary text-[15px] outline-none focus:border-accent-coral transition-colors"
-              placeholder="Enter password"
-              autoComplete="current-password"
-            />
-          </div>
-
-          {error && (
-            <p className="text-danger-red text-sm text-center">{error}</p>
-          )}
-
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="w-full py-3.5 bg-accent-coral rounded-[14px] text-white font-semibold text-[16px] disabled:opacity-50 active:scale-[0.98] transition-transform"
-          >
-            {isLoading ? "Signing in..." : "Sign In"}
-          </button>
-        </form>
-
-        {/* Links */}
-        <div className="mt-6 text-center">
-          <Link href="/signup" className="text-accent-coral text-sm font-medium">
-            Create Account
-          </Link>
-        </div>
+    <div className="flex flex-col h-dvh bg-bg-page safe-top safe-bottom px-8 pb-10">
+      {/* Header */}
+      <div className="flex items-center h-14 pt-[60px]">
+        <button onClick={() => router.back()} className="flex items-center gap-1.5 text-text-primary">
+          <ArrowLeft size={18} />
+          <span className="text-[16px] font-medium">Back</span>
+        </button>
       </div>
 
-      {/* Footer */}
-      <div className="pb-6 flex items-center justify-center gap-1.5">
-        <span className="text-[11px] text-text-muted">Powered by</span>
-        <span className="text-[11px] text-text-secondary font-medium">Driven History</span>
+      {/* Top flex spacer */}
+      <div className="flex-1" />
+
+      {/* Title */}
+      <div className="flex flex-col items-center mb-9">
+        <h1 className="text-[28px] font-bold text-text-primary mb-2">Sign In</h1>
+        <p className="text-[15px] text-text-secondary">Welcome back to Spotter</p>
       </div>
+
+      {/* Form */}
+      <form onSubmit={handleSubmit} className="space-y-[18px]">
+        <div>
+          <label className="block text-[13px] font-medium text-text-secondary mb-2">Email</label>
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => { setEmail(e.target.value); clearError(); }}
+            className="w-full px-4 py-3.5 bg-bg-card border border-border-subtle rounded-[14px] text-text-primary text-[15px] outline-none focus:border-accent-coral transition-colors placeholder:text-text-muted"
+            placeholder="you@email.com"
+            autoComplete="email"
+          />
+        </div>
+        <div>
+          <label className="block text-[13px] font-medium text-text-secondary mb-2">Password</label>
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => { setPassword(e.target.value); clearError(); }}
+            className="w-full px-4 py-3.5 bg-bg-card border border-border-subtle rounded-[14px] text-text-primary text-[15px] outline-none focus:border-accent-coral transition-colors placeholder:text-text-muted"
+            placeholder="Enter password"
+            autoComplete="current-password"
+          />
+        </div>
+
+        {error && (
+          <p className="text-danger-red text-sm text-center">{error}</p>
+        )}
+
+        <div className="h-2.5" />
+
+        <button
+          type="submit"
+          disabled={isLoading}
+          className="w-full h-[54px] bg-accent-coral rounded-full text-white font-semibold text-[17px] disabled:opacity-50 active:scale-[0.98] transition-transform"
+        >
+          {isLoading ? "Signing in..." : "Sign In"}
+        </button>
+      </form>
+
+      <div className="h-5" />
+
+      {/* Link */}
+      <div className="text-center">
+        <span className="text-[14px] text-text-secondary">Don&apos;t have an account? </span>
+        <Link href="/signup" className="text-[14px] text-accent-coral font-semibold">
+          Create one
+        </Link>
+      </div>
+
+      {/* Bottom flex spacer */}
+      <div className="flex-1" />
     </div>
   );
 }

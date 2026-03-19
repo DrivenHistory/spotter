@@ -6,9 +6,9 @@
   --color-bg-elevated: #1A1A1E;
 
   --color-text-primary: #FAFAF9;
-  --color-text-secondary: #6B6B70;
+  --color-text-secondary: #A1A1AA;
   --color-text-tertiary: #4A4A50;
-  --color-text-muted: #8E8E93;
+  --color-text-muted: #71717A;
 
   --color-border-subtle: #2A2A2E;
   --color-border-strong: #3A3A40;
@@ -63,11 +63,10 @@
   src: url("https://fonts.gstatic.com/s/dmsans/v15/rP2tp2ywxg089UriI5-g4vlH9VoD8CmcqZG40F9JadbnoEwAop1hTmf3ZGMZpg.woff2") format("woff2");
 }
 
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-  -webkit-tap-highlight-color: transparent;
+@layer base {
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
 }
 
 html, body {
@@ -90,5 +89,7 @@ input, textarea {
 .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
 
 /* Safe area padding for Capacitor */
-.safe-top { padding-top: env(safe-area-inset-top, 0px); }
-.safe-bottom { padding-bottom: env(safe-area-inset-bottom, 0px); }
+@layer utilities {
+  .safe-top { padding-top: env(safe-area-inset-top, 0px); }
+  .safe-bottom { padding-bottom: env(safe-area-inset-bottom, 0px); }
+}

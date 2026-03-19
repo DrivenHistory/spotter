@@ -7,6 +7,7 @@ import { useGroups } from "@/lib/groups-context";
 import { user as userApi, spotter, type Group } from "@/lib/api";
 import { points } from "@/lib/rarity";
 import { InviteSheet } from "@/components/groups/InviteSheet";
+import { BottomSheet } from "@/components/BottomSheet";
 
 interface Settings {
   displayName: string | null;
@@ -345,32 +346,27 @@ function EditProfileSheet({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60" onClick={onClose}>
-      <div className="w-full max-w-md bg-bg-page rounded-t-[24px] p-6 safe-bottom" onClick={(e) => e.stopPropagation()}>
-        <div className="w-10 h-1 bg-border-strong rounded-full mx-auto mb-5" />
-        <h3 className="text-xl font-semibold text-text-primary text-center mb-5">Edit Profile</h3>
-
-        <div className="space-y-4 mb-5">
-          <div>
-            <label className="block text-[12px] font-medium text-text-secondary mb-1.5">Display Name</label>
-            <input
-              value={displayName}
-              onChange={(e) => setDisplayName(e.target.value)}
-              className="w-full px-3.5 py-3.5 bg-bg-card border border-border-subtle rounded-[12px] text-text-primary text-[15px] outline-none focus:border-accent-coral transition-colors"
-            />
-          </div>
-          <div>
-            <label className="block text-[12px] font-medium text-text-secondary mb-1.5">Bio</label>
-            <textarea
-              value={bio}
-              onChange={(e) => setBio(e.target.value)}
-              rows={3}
-              className="w-full px-3.5 py-3.5 bg-bg-card border border-border-subtle rounded-[12px] text-text-primary text-[15px] outline-none focus:border-accent-coral transition-colors resize-none"
-            />
-          </div>
+    <BottomSheet open={true} onClose={onClose} title="Edit Profile">
+      <div className="flex flex-col gap-4 pb-8">
+        <div>
+          <label className="block text-[12px] font-medium text-text-secondary mb-1.5">Display Name</label>
+          <input
+            value={displayName}
+            onChange={(e) => setDisplayName(e.target.value)}
+            className="w-full px-3.5 py-3.5 bg-bg-elevated border border-border-subtle rounded-[12px] text-text-primary text-[15px] outline-none focus:border-accent-coral transition-colors"
+          />
+        </div>
+        <div>
+          <label className="block text-[12px] font-medium text-text-secondary mb-1.5">Bio</label>
+          <textarea
+            value={bio}
+            onChange={(e) => setBio(e.target.value)}
+            rows={3}
+            className="w-full px-3.5 py-3.5 bg-bg-elevated border border-border-subtle rounded-[12px] text-text-primary text-[15px] outline-none focus:border-accent-coral transition-colors resize-none"
+          />
         </div>
 
-        {error && <p className="text-danger-red text-sm text-center mb-3">{error}</p>}
+        {error && <p className="text-danger-red text-sm text-center">{error}</p>}
 
         <button
           onClick={save}
@@ -380,6 +376,6 @@ function EditProfileSheet({
           {saving ? "Saving..." : "Save"}
         </button>
       </div>
-    </div>
+    </BottomSheet>
   );
 }

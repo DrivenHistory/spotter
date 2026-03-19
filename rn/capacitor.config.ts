@@ -11,14 +11,21 @@ const config: CapacitorConfig = {
       backgroundColor: "#0B0B0E",
     },
     Keyboard: {
-      resize: "body",
+      resize: "none",
       resizeOnFullScreen: true,
+    },
+    CapacitorHttp: {
+      enabled: true,
+    },
+    CapacitorCookies: {
+      enabled: true,
     },
   },
   server: {
     // For development, point to local Next.js dev server:
     // url: "http://localhost:3000",
     // For production, use the static export in webDir
+    allowNavigation: ["www.drivenhistory.com"],
   },
 };
 

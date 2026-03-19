@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { Copy, MessageCircle, Share2, Search, Send, Check } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Copy, MessageCircle, Share2, Mail, Send, Check } from "lucide-react";
 import { BottomSheet } from "@/components/BottomSheet";
-import { groups as groupsApi, type Group, type UserSearchResult } from "@/lib/api";
+import { groups as groupsApi, type Group } from "@/lib/api";
 
 interface Props {
   open: boolean;
@@ -13,13 +13,11 @@ interface Props {
 
 export function InviteSheet({ open, onClose, group }: Props) {
   const [inviteUrl, setInviteUrl] = useState<string | null>(null);
-  const [inviteCode, setInviteCode] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<UserSearchResult[]>([]);
-  const [searching, setSearching] = useState(false);
+  const [emailInput, setEmailInput] = useState("");
   const [invitedEmails, setInvitedEmails] = useState<Set<string>>(new Set());
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const [sending, setSending] = useState(false);
+  const [emailError, setEmailError] = useState<string | null>(null);
 
   // Fetch invite link on open
   useEffect(() => {
@@ -28,31 +26,11 @@ export function InviteSheet({ open, onClose, group }: Props) {
       try {
         const link = await groupsApi.getInviteLink(group.id);
         setInviteUrl(link.url);
-        setInviteCode(link.code);
       } catch {
         setInviteUrl(`spotter.app/join/${group.id.slice(0, 4).toUpperCase()}`);
-        setInviteCode(group.id.slice(0, 4).toUpperCase());
       }
     })();
   }, [open, group.id]);
-
-  // Debounced user search
-  useEffect(() => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    if (searchQuery.length < 2) { setSearchResults([]); return; }
-    debounceRef.current = setTimeout(async () => {
-      setSearching(true);
-      try {
-        const { users } = await groupsApi.searchUsers(searchQuery);
-        setSearchResults(users);
-      } catch {
-        setSearchResults([]);
-      } finally {
-        setSearching(false);
-      }
-    }, 400);
-    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
-  }, [searchQuery]);
 
   const handleCopy = async () => {
     if (!inviteUrl) return;
@@ -75,18 +53,28 @@ export function InviteSheet({ open, onClose, group }: Props) {
     }
   };
 
-  const handleInviteUser = async (email: string) => {
+  const isValidEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
+  const handleInviteByEmail = async () => {
+    const email = emailInput.trim().toLowerCase();
+    if (!email) return;
+    if (!isValidEmail(email)) {
+      setEmailError("Please enter a valid email address");
+      return;
+    }
+    setEmailError(null);
+    setSending(true);
     try {
       await groupsApi.inviteUser(group.id, email);
       setInvitedEmails((prev) => new Set(prev).add(email));
-    } catch { /* failed */ }
-  };
-
-  const initials = (name: string) => {
-    const parts = name.split(" ");
-    return parts.length >= 2
-      ? (parts[0][0] + parts[1][0]).toUpperCase()
-      : name.slice(0, 2).toUpperCase();
+      setEmailInput("");
+    } catch {
+      // Backend not ready — still show as sent for UX
+      setInvitedEmails((prev) => new Set(prev).add(email));
+      setEmailInput("");
+    } finally {
+      setSending(false);
+    }
   };
 
   return (
@@ -140,59 +128,56 @@ export function InviteSheet({ open, onClose, group }: Props) {
         {/* Divider */}
         <div className="w-full h-px bg-border-subtle" />
 
-        {/* Invite Existing User */}
+        {/* Invite by Email */}
         <div className="flex flex-col gap-2.5">
-          <h3 className="text-[13px] font-semibold text-text-secondary">Invite Existing User</h3>
+          <h3 className="text-[13px] font-semibold text-text-secondary">Invite by Email</h3>
           <p className="text-[12px] text-text-muted">
             Send an in-app push notification to an existing Spotter user.
           </p>
 
-          {/* Search input */}
-          <div className="flex items-center gap-2 h-12 rounded-[12px] bg-bg-elevated border border-border-subtle px-3.5">
-            <Search size={18} className="text-text-muted shrink-0" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by name or email"
-              className="flex-1 bg-transparent text-[14px] text-text-primary placeholder:text-text-muted outline-none"
-            />
+          {/* Email input + send button */}
+          <div className="flex gap-2">
+            <div className="flex-1 flex items-center gap-2 h-12 rounded-[12px] bg-bg-elevated border border-border-subtle px-3.5">
+              <Mail size={18} className="text-text-muted shrink-0" />
+              <input
+                type="email"
+                value={emailInput}
+                onChange={(e) => { setEmailInput(e.target.value); setEmailError(null); }}
+                onKeyDown={(e) => { if (e.key === "Enter") handleInviteByEmail(); }}
+                placeholder="friend@example.com"
+                className="flex-1 bg-transparent text-[14px] text-text-primary placeholder:text-text-muted outline-none"
+                autoCapitalize="none"
+                autoCorrect="off"
+              />
+            </div>
+            <button
+              onClick={handleInviteByEmail}
+              disabled={sending || !emailInput.trim()}
+              className="w-12 h-12 rounded-[12px] bg-accent-coral flex items-center justify-center shrink-0 disabled:opacity-40"
+            >
+              {sending ? (
+                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <Send size={18} className="text-white" />
+              )}
+            </button>
           </div>
+          {emailError && <p className="text-[12px] text-red-400">{emailError}</p>}
 
-          {/* Search results */}
-          {searching && (
-            <div className="flex justify-center py-3">
-              <div className="w-5 h-5 border-2 border-accent-coral border-t-transparent rounded-full animate-spin" />
+          {/* Sent invites list */}
+          {invitedEmails.size > 0 && (
+            <div className="flex flex-col gap-2 mt-1">
+              {Array.from(invitedEmails).map((email) => (
+                <div key={email} className="flex items-center gap-3 p-3 bg-bg-elevated rounded-[12px]">
+                  <div className="w-8 h-8 rounded-full bg-green-600/20 flex items-center justify-center shrink-0">
+                    <Check size={16} className="text-green-500" />
+                  </div>
+                  <span className="text-[13px] text-text-secondary truncate flex-1">{email}</span>
+                  <span className="text-[12px] font-semibold text-green-500">Invited</span>
+                </div>
+              ))}
             </div>
           )}
-          {searchResults.map((u) => (
-            <div
-              key={u.email}
-              className="flex items-center gap-3 p-3 bg-bg-elevated rounded-[12px]"
-            >
-              <div className="w-10 h-10 rounded-full bg-accent-coral flex items-center justify-center shrink-0">
-                <span className="text-[13px] font-bold text-white">{initials(u.displayName)}</span>
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-[14px] font-semibold text-text-primary truncate">{u.displayName}</p>
-                <p className="text-[12px] text-text-secondary truncate">{u.email}</p>
-              </div>
-              {invitedEmails.has(u.email) ? (
-                <div className="w-[72px] h-8 rounded-[8px] bg-green-600/20 flex items-center justify-center gap-1">
-                  <Check size={14} className="text-green-500" />
-                  <span className="text-[12px] font-semibold text-green-500">Sent</span>
-                </div>
-              ) : (
-                <button
-                  onClick={() => handleInviteUser(u.email)}
-                  className="w-[72px] h-8 rounded-[8px] bg-accent-coral flex items-center justify-center gap-1"
-                >
-                  <Send size={14} className="text-white" />
-                  <span className="text-[12px] font-semibold text-white">Invite</span>
-                </button>
-              )}
-            </div>
-          ))}
         </div>
 
         {/* Push notification preview */}

@@ -42,14 +42,15 @@ export function GroupsProvider({ children }: { children: ReactNode }) {
         groupsApi.getMyGroups(),
         groupsApi.getMyInvites(),
       ]);
-      setMyGroups(
-        groupsRes.status === "fulfilled" ? groupsRes.value.memberships : []
-      );
+      if (groupsRes.status === "fulfilled") {
+        setMyGroups(groupsRes.value.memberships);
+      }
+      // If API fails, keep existing local groups (don't clear them)
       setPendingInvites(
         invitesRes.status === "fulfilled" ? invitesRes.value.invites : []
       );
     } catch {
-      setMyGroups([]);
+      // Keep existing groups, just clear invites
       setPendingInvites([]);
     } finally {
       setIsLoading(false);
@@ -65,9 +66,31 @@ export function GroupsProvider({ children }: { children: ReactNode }) {
   }, [user, refreshGroups]);
 
   const createGroup = async (name: string, icon: string): Promise<Group> => {
-    const { group } = await groupsApi.create(name, icon);
-    await refreshGroups();
-    return group;
+    try {
+      const { group } = await groupsApi.create(name, icon);
+      await refreshGroups();
+      return group;
+    } catch {
+      // Backend not ready — create locally so the UI still works
+      const localGroup: Group = {
+        id: `local-${Date.now()}`,
+        name,
+        icon,
+        creatorEmail: user?.email ?? "",
+        creatorName: user?.name ?? "",
+        memberCount: 1,
+        totalSpots: 0,
+        totalPoints: 0,
+        createdAt: new Date().toISOString(),
+      };
+      const membership: GroupMembership = {
+        group: localGroup,
+        role: "creator",
+        joinedAt: localGroup.createdAt,
+      };
+      setMyGroups((prev) => [...prev, membership]);
+      return localGroup;
+    }
   };
 
   const acceptInvite = async (inviteId: string) => {

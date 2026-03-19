@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, useCallback, type ReactNode } from "react";
 import { X } from "lucide-react";
 
 interface BottomSheetProps {
@@ -11,7 +11,8 @@ interface BottomSheetProps {
 }
 
 export function BottomSheet({ open, onClose, title, children }: BottomSheetProps) {
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [kbHeight, setKbHeight] = useState(0);
+  const contentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (open) document.body.style.overflow = "hidden";
@@ -19,26 +20,67 @@ export function BottomSheet({ open, onClose, title, children }: BottomSheetProps
     return () => { document.body.style.overflow = ""; };
   }, [open]);
 
-  // Handle iOS keyboard via visualViewport API
+  // Scroll focused input into view when keyboard appears
+  const scrollFocusedIntoView = useCallback(() => {
+    requestAnimationFrame(() => {
+      const el = document.activeElement as HTMLElement | null;
+      if (el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA") && contentRef.current) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    });
+  }, []);
+
+  // Listen for keyboard via multiple strategies
   useEffect(() => {
     if (!open || typeof window === "undefined") return;
 
+    const listeners: Array<() => void> = [];
+
+    // Strategy 1: Capacitor Keyboard plugin events
+    const onKeyboardShow = (ev: Event) => {
+      const detail = (ev as CustomEvent).detail;
+      const height = detail?.keyboardHeight ?? 0;
+      setKbHeight(height > 0 ? height : 300);
+      scrollFocusedIntoView();
+    };
+    const onKeyboardHide = () => setKbHeight(0);
+
+    window.addEventListener("keyboardWillShow", onKeyboardShow);
+    window.addEventListener("keyboardDidShow", onKeyboardShow);
+    window.addEventListener("keyboardWillHide", onKeyboardHide);
+    window.addEventListener("keyboardDidHide", onKeyboardHide);
+    listeners.push(() => {
+      window.removeEventListener("keyboardWillShow", onKeyboardShow);
+      window.removeEventListener("keyboardDidShow", onKeyboardShow);
+      window.removeEventListener("keyboardWillHide", onKeyboardHide);
+      window.removeEventListener("keyboardDidHide", onKeyboardHide);
+    });
+
+    // Strategy 2: visualViewport (works in Safari/WKWebView)
     const vv = window.visualViewport;
-    if (!vv) return;
+    if (vv) {
+      const onViewportResize = () => {
+        const diff = window.innerHeight - vv.height;
+        const height = diff > 50 ? diff : 0;
+        setKbHeight(height);
+        if (height > 0) scrollFocusedIntoView();
+      };
+      vv.addEventListener("resize", onViewportResize);
+      listeners.push(() => vv.removeEventListener("resize", onViewportResize));
+    }
 
-    const onResize = () => {
-      const kbHeight = window.innerHeight - vv.height;
-      setKeyboardHeight(kbHeight > 50 ? kbHeight : 0);
+    // Strategy 3: focus/blur on inputs — fallback scroll
+    const onFocusIn = () => {
+      setTimeout(scrollFocusedIntoView, 300);
     };
+    document.addEventListener("focusin", onFocusIn);
+    listeners.push(() => document.removeEventListener("focusin", onFocusIn));
 
-    vv.addEventListener("resize", onResize);
-    vv.addEventListener("scroll", onResize);
     return () => {
-      vv.removeEventListener("resize", onResize);
-      vv.removeEventListener("scroll", onResize);
-      setKeyboardHeight(0);
+      listeners.forEach((fn) => fn());
+      setKbHeight(0);
     };
-  }, [open]);
+  }, [open, scrollFocusedIntoView]);
 
   if (!open) return null;
 
@@ -47,12 +89,12 @@ export function BottomSheet({ open, onClose, title, children }: BottomSheetProps
       {/* Backdrop */}
       <div className="absolute inset-0 bg-black/60" onClick={onClose} />
 
-      {/* Sheet */}
+      {/* Sheet — shifts up by keyboard height */}
       <div
-        className="relative w-full bg-bg-card rounded-t-[24px] flex flex-col transition-all duration-200"
+        className="relative w-full bg-bg-card rounded-t-[24px] flex flex-col transition-transform duration-200"
         style={{
-          maxHeight: `${90 - (keyboardHeight / window.innerHeight) * 100}vh`,
-          marginBottom: keyboardHeight > 0 ? `${keyboardHeight}px` : undefined,
+          maxHeight: "90vh",
+          transform: kbHeight > 0 ? `translateY(-${kbHeight}px)` : undefined,
         }}
       >
         {/* Handle */}
@@ -74,7 +116,7 @@ export function BottomSheet({ open, onClose, title, children }: BottomSheetProps
         )}
 
         {/* Content — scrollable */}
-        <div className="flex-1 overflow-y-auto overscroll-contain px-6 pb-8">
+        <div ref={contentRef} className="flex-1 overflow-y-auto overscroll-contain px-6 pb-8">
           {children}
         </div>
       </div>

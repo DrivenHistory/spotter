@@ -1,12 +1,31 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { Camera, Image as ImageIcon, X, Check } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Camera, Image as ImageIcon, ArrowLeft, Check, Zap, RotateCcw, X, Crosshair, LogIn } from "lucide-react";
 import { spotter, type IdentifyResult, type SpottedCar } from "@/lib/api";
-import { points, rarityKey, confidenceBg } from "@/lib/rarity";
+import { useAuth } from "@/lib/auth-context";
+import { points } from "@/lib/rarity";
 import { RarityBadge } from "@/components/ui";
 
-export function SpotTab({ onSaved }: { onSaved: () => void }) {
+const PENDING_SPOT_KEY = "spotter_pending_spot";
+
+export function savePendingSpot(result: IdentifyResult) {
+  try { localStorage.setItem(PENDING_SPOT_KEY, JSON.stringify(result)); } catch {}
+}
+
+export function getPendingSpot(): IdentifyResult | null {
+  try {
+    const raw = localStorage.getItem(PENDING_SPOT_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+
+export function clearPendingSpot() {
+  try { localStorage.removeItem(PENDING_SPOT_KEY); } catch {}
+}
+
+export function SpotTab({ active, onSaved, onClose, onLogin, onSignUp }: { active: boolean; onSaved: () => void; onClose: () => void; onLogin: () => void; onSignUp: () => void }) {
+  const { user } = useAuth();
   const fileRef = useRef<HTMLInputElement>(null);
   const cameraRef = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState<string | null>(null);
@@ -16,6 +35,16 @@ export function SpotTab({ onSaved }: { onSaved: () => void }) {
   const [identifying, setIdentifying] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const prevActive = useRef(false);
+
+  // Auto-open camera when tab becomes active (and no result/preview showing)
+  useEffect(() => {
+    if (active && !prevActive.current && !result && !preview && !identifying) {
+      // Small delay so the DOM is visible before triggering native picker
+      setTimeout(() => cameraRef.current?.click(), 150);
+    }
+    prevActive.current = active;
+  }, [active, result, preview, identifying]);
 
   const handleFile = async (f: File) => {
     setFile(f);
@@ -28,7 +57,9 @@ export function SpotTab({ onSaved }: { onSaved: () => void }) {
       const res = await spotter.identify(f);
       setResult(res);
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Identification failed");
+      const raw = e instanceof Error ? e.message : "";
+      const cleaned = raw.replace(/^ERROR:\s*/i, "").replace(/^Error:\s*/i, "").trim();
+      setError(cleaned || "We couldn't identify this car. Try a clearer photo.");
     }
     setIdentifying(false);
   };
@@ -69,78 +100,112 @@ export function SpotTab({ onSaved }: { onSaved: () => void }) {
   // ── Result view ──
   if (result) {
     const displayName = [result.year, result.make, result.model].filter(Boolean).join(" ");
+    const pts = points(result.rarity);
     return (
-      <div className="h-full overflow-y-auto scrollbar-hide pb-32">
-        {/* Image */}
-        <div className="relative">
-          {preview && <img src={preview} alt="" className="w-full h-[280px] object-cover" />}
-          <div className="absolute top-4 left-4 flex gap-2">
-            <span className="px-2.5 py-1 bg-accent-indigo/90 rounded-[8px] text-[11px] font-semibold text-white">AI Identified</span>
-            <span className={`px-2.5 py-1 rounded-[8px] text-[11px] font-semibold text-white ${confidenceBg(result.confidence)}`}>
-              {result.confidence}%
-            </span>
-          </div>
+      <div className="h-full overflow-y-auto scrollbar-hide px-5 pb-24 safe-top">
+        {/* Nav bar */}
+        <div className="flex items-center justify-between mb-4">
+          <button onClick={reset} className="text-text-primary">
+            <ArrowLeft size={24} />
+          </button>
+          <span className="text-[18px] font-semibold text-text-primary">Identification</span>
+          <div className="w-6" />
         </div>
 
-        <div className="px-6 pt-5 space-y-5">
-          {/* Name + rarity */}
-          <div>
-            <h2 className="text-xl font-bold text-text-primary font-display">{displayName}</h2>
-            <div className="flex items-center gap-2 mt-2">
-              {result.rarity && <RarityBadge rarity={result.rarity} />}
-              {result.type && <span className="text-[12px] text-text-muted">{result.type}</span>}
+        {/* Car image */}
+        {preview && (
+          <img src={preview} alt="" className="w-full h-[220px] object-cover rounded-[16px] mb-4" />
+        )}
+
+        {/* Result card */}
+        <div className="bg-bg-card rounded-[16px] p-5 mb-4">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-[22px] font-bold text-text-primary">{displayName}</h2>
+            {result.rarity && <RarityBadge rarity={result.rarity} />}
+          </div>
+          <p className="text-[14px] text-text-secondary">{result.confidence}% confidence</p>
+        </div>
+
+        {/* Specifications card */}
+        {(result.bhp || result.zeroToSixty || result.topSpeed || result.marketValue) && (
+          <div className="bg-bg-card rounded-[16px] p-5 mb-4">
+            <h3 className="text-[16px] font-semibold text-text-primary mb-3">Specifications</h3>
+            <div className="grid grid-cols-2 gap-3">
+              {result.type && <SpecCell label="Type" value={result.type} />}
+              {result.bhp && <SpecCell label="Horsepower" value={`${result.bhp} hp`} />}
+              {result.zeroToSixty && <SpecCell label="0-60 mph" value={`${result.zeroToSixty} seconds`} />}
+              {result.topSpeed && <SpecCell label="Top Speed" value={`${result.topSpeed} mph`} />}
+              {result.marketValue && <SpecCell label="Market Value" value={result.marketValue} />}
             </div>
           </div>
+        )}
 
-          {/* Details grid */}
-          <div className="grid grid-cols-2 gap-2.5">
-            {result.marketValue && <DetailCell label="Market Value" value={result.marketValue} />}
-            {result.rarity && <DetailCell label="Rarity" value={`${result.rarity} (${points(result.rarity)} pts)`} />}
+        {/* Points row */}
+        {pts > 0 && (
+          <div className="flex items-center justify-center gap-2 mb-4">
+            <Zap size={20} className="text-accent-coral" />
+            <span className="text-[16px] font-semibold text-accent-coral">+{pts} points</span>
           </div>
+        )}
 
-          {/* Performance */}
-          {(result.bhp || result.zeroToSixty || result.topSpeed) && (
-            <div className="flex gap-2">
-              {result.bhp && <PerfBox label="BHP" value={result.bhp} />}
-              {result.zeroToSixty && <PerfBox label="0-60" value={`${result.zeroToSixty}s`} />}
-              {result.topSpeed && <PerfBox label="Top Speed" value={`${result.topSpeed} mph`} />}
-            </div>
-          )}
+        {error && <p className="text-danger-red text-sm text-center mb-4">{error}</p>}
 
-          {/* Description */}
-          {result.description && (
-            <p className="text-[13px] text-text-secondary leading-relaxed">{result.description}</p>
-          )}
-
-          {error && <p className="text-danger-red text-sm text-center">{error}</p>}
-
-          {/* Save / Saved */}
-          {saved ? (
-            <div className="space-y-3">
-              <button className="w-full py-3.5 bg-accent-green rounded-[14px] text-white font-semibold flex items-center justify-center gap-2">
-                <Check size={18} /> Saved to Collection
-              </button>
-              <button onClick={reset} className="w-full py-3.5 border border-border-subtle rounded-[14px] text-text-secondary font-medium text-[14px]">
-                Spot Another Car
-              </button>
-            </div>
-          ) : (
+        {/* Save / Saved / Sign-in gate */}
+        {!user ? (
+          <div className="space-y-3">
+            <button
+              onClick={() => { savePendingSpot(result); onLogin(); }}
+              className="w-full h-[52px] bg-accent-coral rounded-[26px] text-white font-semibold text-[17px] flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"
+            >
+              <LogIn size={18} />
+              Sign in to Save
+            </button>
+            <button
+              onClick={() => { savePendingSpot(result); onSignUp(); }}
+              className="w-full h-[52px] border border-border-subtle rounded-[26px] text-text-primary font-semibold text-[17px] flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"
+            >
+              Create Account
+            </button>
+            <button onClick={reset} className="w-full h-[52px] border border-border-subtle rounded-[26px] text-text-secondary font-medium text-[15px]">
+              Discard
+            </button>
+            <p className="text-[12px] text-text-muted text-center">Your spotted car will be saved after you sign in</p>
+          </div>
+        ) : saved ? (
+          <div className="space-y-3">
+            <button className="w-full h-[52px] bg-accent-green rounded-[26px] text-white font-semibold text-[17px] flex items-center justify-center gap-2">
+              <Check size={18} /> Saved to Collection
+            </button>
+            <button onClick={reset} className="w-full h-[52px] border border-border-subtle rounded-[26px] text-text-secondary font-medium text-[15px]">
+              Spot Another Car
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-3">
             <button
               onClick={handleSave}
               disabled={saving}
-              className="w-full py-3.5 bg-accent-coral rounded-[14px] text-white font-semibold text-[16px] disabled:opacity-50 active:scale-[0.98] transition-transform"
+              className="w-full h-[52px] bg-accent-coral rounded-[26px] text-white font-semibold text-[17px] disabled:opacity-50 active:scale-[0.98] transition-transform"
             >
-              {saving ? "Saving..." : "Save Spot"}
+              {saving ? "Saving..." : "Save to Collection"}
             </button>
-          )}
-        </div>
+            <button onClick={reset} className="w-full h-[52px] border border-border-subtle rounded-[26px] text-text-secondary font-medium text-[15px]">
+              Discard
+            </button>
+          </div>
+        )}
       </div>
     );
   }
 
   // ── Camera/upload view ──
   return (
-    <div className="h-full flex flex-col items-center justify-center px-6">
+    <div className="h-full relative overflow-hidden">
+      {/* Dark atmospheric background */}
+      <div className="absolute inset-0 bg-[#08080A]" />
+      <div className="absolute inset-0 bg-gradient-to-b from-[#0B0B0E] via-[#111115]/80 to-[#0B0B0E]" />
+      <div className="absolute inset-0 opacity-[0.08]" style={{ backgroundImage: "radial-gradient(circle at 50% 40%, #E85A4F 0%, transparent 60%)" }} />
+
       {/* Hidden file inputs */}
       <input
         ref={cameraRef}
@@ -159,64 +224,77 @@ export function SpotTab({ onSaved }: { onSaved: () => void }) {
       />
 
       {identifying ? (
-        <div className="flex flex-col items-center">
+        <div className="relative z-10 h-full flex flex-col items-center justify-center">
           {preview && (
-            <img src={preview} alt="" className="w-48 h-48 rounded-[20px] object-cover mb-6 border border-border-subtle" />
+            <img src={preview} alt="" className="w-48 h-48 rounded-[20px] object-cover mb-6" />
           )}
           <div className="w-8 h-8 border-2 border-accent-coral border-t-transparent rounded-full animate-spin mb-4" />
-          <p className="text-text-secondary text-sm">Identifying car...</p>
+          <p className="text-text-secondary text-[14px]">Identifying car...</p>
         </div>
       ) : (
-        <>
-          {/* Viewfinder icon */}
-          <div className="w-24 h-24 rounded-[20px] border-2 border-dashed border-accent-coral/40 flex items-center justify-center mb-8">
-            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#E85A4F" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.6">
-              <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
-              <circle cx="12" cy="12" r="3" />
-            </svg>
+        <div className="relative z-10 h-full flex flex-col">
+          {/* Top bar with gradient */}
+          <div className="flex items-end justify-between px-5 pb-3" style={{ paddingTop: "calc(12px + env(safe-area-inset-top, 0px))" }}>
+            <h2 className="text-[18px] font-semibold text-text-primary">Spot a Car</h2>
+            <button onClick={onClose} className="p-1"><X size={24} className="text-text-primary" /></button>
           </div>
 
-          {/* Buttons */}
-          <div className="flex gap-4 mb-6">
-            <button
-              onClick={() => cameraRef.current?.click()}
-              className="flex items-center gap-2 px-6 py-3.5 bg-accent-coral rounded-[14px] text-white font-semibold active:scale-[0.98] transition-transform"
-            >
-              <Camera size={18} /> Camera
-            </button>
-            <button
-              onClick={() => fileRef.current?.click()}
-              className="flex items-center gap-2 px-6 py-3.5 bg-bg-card border border-border-subtle rounded-[14px] text-text-primary font-medium active:scale-[0.98] transition-transform"
-            >
-              <ImageIcon size={18} /> Gallery
-            </button>
+          {/* Center viewfinder */}
+          <div className="flex-1 flex items-center justify-center">
+            <div className="relative w-[280px] h-[280px]">
+              <svg className="absolute inset-0" width="280" height="280" viewBox="0 0 280 280" fill="none">
+                <path d="M4 40V4H40" stroke="rgba(255,255,255,0.7)" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M240 4H276V40" stroke="rgba(255,255,255,0.7)" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M4 240V276H40" stroke="rgba(255,255,255,0.7)" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M240 276H276V240" stroke="rgba(255,255,255,0.7)" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </div>
           </div>
 
-          {error && <p className="text-danger-red text-sm mb-4">{error}</p>}
+          {/* Bottom controls with gradient */}
+          <div className="px-5 pb-8 pt-6 bg-gradient-to-t from-[#0B0B0E] via-[#0B0B0E]/80 to-transparent">
+            <div className="flex items-center justify-center gap-12 mb-4">
+              {/* Gallery button */}
+              <button
+                onClick={() => fileRef.current?.click()}
+                className="w-12 h-12 rounded-[8px] bg-[#1E1E24] border border-[#27272A] flex items-center justify-center active:scale-95 transition-transform"
+              >
+                <ImageIcon size={20} className="text-text-primary" />
+              </button>
 
-          <p className="text-[12px] text-text-muted text-center px-8">
-            Take a photo or pick one from your gallery. Our AI will identify the car instantly.
-          </p>
-        </>
+              {/* Capture button */}
+              <button
+                onClick={() => cameraRef.current?.click()}
+                className="relative active:scale-95 transition-transform"
+              >
+                <div className="w-[72px] h-[72px] rounded-full border-[4px] border-white flex items-center justify-center">
+                  <div className="w-[58px] h-[58px] rounded-full bg-accent-coral" />
+                </div>
+              </button>
+
+              {/* Flip/rotate */}
+              <button className="w-12 h-12 rounded-full bg-[#1E1E24] border border-[#27272A] flex items-center justify-center">
+                <RotateCcw size={20} className="text-text-primary" />
+              </button>
+            </div>
+
+            {error && <p className="text-danger-red text-sm text-center mb-2">{error}</p>}
+
+            <p className="text-[13px] text-text-secondary text-center">
+              Point at a car and tap to identify
+            </p>
+          </div>
+        </div>
       )}
     </div>
   );
 }
 
-function DetailCell({ label, value }: { label: string; value: string }) {
+function SpecCell({ label, value }: { label: string; value: string }) {
   return (
-    <div className="p-3 bg-bg-card rounded-[12px] border border-border-subtle">
-      <p className="text-[10px] text-text-muted mb-0.5">{label}</p>
-      <p className="text-[13px] font-semibold text-text-primary">{value}</p>
-    </div>
-  );
-}
-
-function PerfBox({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex-1 p-3 bg-bg-card rounded-[12px] border border-border-subtle text-center">
-      <p className="text-[14px] font-bold text-text-primary">{value}</p>
-      <p className="text-[10px] text-text-muted mt-0.5">{label}</p>
+    <div className="flex flex-col gap-1">
+      <span className="text-[11px] text-text-muted">{label}</span>
+      <span className="text-[14px] font-semibold text-text-primary">{value}</span>
     </div>
   );
 }
