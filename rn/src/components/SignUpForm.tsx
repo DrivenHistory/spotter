@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
+import { useKeyboardHeight } from "@/hooks/useKeyboardHeight";
 
 export function SignUpForm({
   onBack,
@@ -12,6 +13,7 @@ export function SignUpForm({
   onSignIn: () => void;
 }) {
   const { signup, error, isLoading, clearError } = useAuth();
+  const kbHeight = useKeyboardHeight();
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -20,6 +22,12 @@ export function SignUpForm({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     await signup(email, username, password, confirm);
+  };
+
+  const scrollOnFocus = (e: React.FocusEvent<HTMLInputElement>) => {
+    setTimeout(() => {
+      e.target.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 300);
   };
 
   const inputClass =
@@ -36,7 +44,7 @@ export function SignUpForm({
       </div>
 
       {/* Scrollable content — allows scrolling when keyboard is open */}
-      <div className="flex-1 overflow-y-auto overscroll-contain px-8 pb-10">
+      <div className="flex-1 overflow-y-auto overscroll-contain px-8 pb-10" style={{ paddingBottom: kbHeight > 0 ? kbHeight + 40 : undefined }}>
         <div className="min-h-[40px]" />
 
         {/* Title */}
@@ -56,6 +64,7 @@ export function SignUpForm({
               className={inputClass}
               placeholder="you@email.com"
               autoComplete="email"
+              onFocus={scrollOnFocus}
             />
           </div>
           <div>
@@ -67,6 +76,7 @@ export function SignUpForm({
               className={inputClass}
               placeholder="Pick a username"
               autoComplete="username"
+              onFocus={scrollOnFocus}
             />
           </div>
           <div>
@@ -78,6 +88,7 @@ export function SignUpForm({
               className={inputClass}
               placeholder="Create password"
               autoComplete="new-password"
+              onFocus={scrollOnFocus}
             />
           </div>
           <div>
@@ -89,6 +100,7 @@ export function SignUpForm({
               className={inputClass}
               placeholder="Confirm password"
               autoComplete="new-password"
+              onFocus={scrollOnFocus}
             />
           </div>
 

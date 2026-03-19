@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, Mail } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { auth as authApi } from "@/lib/api";
+import { useKeyboardHeight } from "@/hooks/useKeyboardHeight";
 
 export function SignInForm({
   onBack,
@@ -13,6 +14,7 @@ export function SignInForm({
   onSignUp: () => void;
 }) {
   const { login, checkSession, error, isLoading, clearError } = useAuth();
+  const kbHeight = useKeyboardHeight();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
@@ -26,6 +28,12 @@ export function SignInForm({
   useEffect(() => {
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, []);
+
+  const scrollOnFocus = (e: React.FocusEvent<HTMLInputElement>) => {
+    setTimeout(() => {
+      e.target.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 300);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -110,7 +118,7 @@ export function SignInForm({
       </div>
 
       {/* Scrollable content — allows scrolling when keyboard is open */}
-      <div className="flex-1 overflow-y-auto overscroll-contain px-8 pb-10">
+      <div className="flex-1 overflow-y-auto overscroll-contain px-8 pb-10" style={{ paddingBottom: kbHeight > 0 ? kbHeight + 40 : undefined }}>
         {/* Top flex spacer */}
         <div className="min-h-[60px]" />
 
@@ -131,6 +139,7 @@ export function SignInForm({
               className="w-full px-4 py-3.5 bg-bg-card border border-border-subtle rounded-[14px] text-text-primary text-[15px] outline-none focus:border-accent-coral transition-colors placeholder:text-text-muted"
               placeholder="you@email.com"
               autoComplete="email"
+              onFocus={scrollOnFocus}
             />
           </div>
           <div>
@@ -142,6 +151,7 @@ export function SignInForm({
               className="w-full px-4 py-3.5 bg-bg-card border border-border-subtle rounded-[14px] text-text-primary text-[15px] outline-none focus:border-accent-coral transition-colors placeholder:text-text-muted"
               placeholder="Enter password"
               autoComplete="current-password"
+              onFocus={scrollOnFocus}
             />
           </div>
 
