@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Check, X, Mail } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { spotter, user as userApi, type SpottedCar } from "@/lib/api";
 import { points } from "@/lib/rarity";
@@ -15,7 +16,7 @@ import type { Group } from "@/lib/api";
 
 export function HomeTab({ onProfile }: { onProfile?: () => void }) {
   const { user } = useAuth();
-  const { myGroups } = useGroups();
+  const { myGroups, pendingInvites, acceptInvite, declineInvite } = useGroups();
   const [feed, setFeed] = useState<SpottedCar[]>([]);
   const [weeklySpots, setWeeklySpots] = useState<SpottedCar[]>([]);
   const [loading, setLoading] = useState(true);
@@ -93,15 +94,52 @@ export function HomeTab({ onProfile }: { onProfile?: () => void }) {
         </div>
       )}
 
-      {/* Invite Friends card */}
-      {user && (
+      {/* Pending Invites OR Invite Friends card */}
+      {user && pendingInvites.length > 0 ? (
+        <div className="mb-5 p-4 bg-accent-coral/10 border border-accent-coral/30 rounded-[16px]">
+          <div className="flex items-center gap-2 mb-3">
+            <Mail size={18} className="text-accent-coral" />
+            <h2 className="text-[16px] font-semibold text-text-primary">
+              {pendingInvites.length === 1 ? "You have a group invite!" : `You have ${pendingInvites.length} group invites!`}
+            </h2>
+          </div>
+          <div className="flex flex-col gap-2.5">
+            {pendingInvites.map((inv) => (
+              <div key={inv.id} className="flex items-center gap-3 p-3 bg-bg-card rounded-[12px]">
+                <div className="w-9 h-9 rounded-[10px] bg-bg-elevated flex items-center justify-center text-[18px] shrink-0">
+                  {inv.groupIcon}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[14px] font-semibold text-text-primary truncate">{inv.groupName}</p>
+                  <p className="text-[11px] text-text-secondary">from {inv.inviterName}</p>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => acceptInvite(inv.id).catch(() => {})}
+                    className="h-8 px-3 rounded-[8px] bg-accent-coral flex items-center gap-1"
+                  >
+                    <Check size={14} className="text-white" />
+                    <span className="text-[12px] font-semibold text-white">Join</span>
+                  </button>
+                  <button
+                    onClick={() => declineInvite(inv.id).catch(() => {})}
+                    className="w-8 h-8 rounded-[8px] bg-bg-elevated flex items-center justify-center"
+                  >
+                    <X size={14} className="text-text-muted" />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : user ? (
         <div className="mb-5">
           <InviteFriendsCard onTap={() => {
             if (myGroups.length > 0) setShowGroupPicker(true);
             else setShowCreateGroup(true);
           }} />
         </div>
-      )}
+      ) : null}
 
       {/* Community Spots */}
       <h2 className="text-[18px] font-semibold text-text-primary mb-2">Community Spots</h2>

@@ -95,7 +95,7 @@ export function CarsTab({ onLogin }: { onLogin: () => void }) {
           >
             <img src="/dh-logo-horizontal.png" alt="DH" className="w-12 h-12 rounded-[12px] object-contain" />
             <div className="flex-1 text-left flex flex-col gap-1">
-              <p className="text-[14px] font-semibold text-text-primary">Track your full collection</p>
+              <p className="text-[14px] font-semibold text-text-primary">Capture your Car History</p>
               <p className="text-[12px] text-text-secondary">View your garage on DrivenHistory.com</p>
             </div>
             <ArrowRight size={20} className="text-accent-coral shrink-0" />
