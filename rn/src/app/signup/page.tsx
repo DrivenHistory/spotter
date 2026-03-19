@@ -11,12 +11,11 @@ export default function SignUpPage() {
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [confirm, setConfirm] = useState("");
   const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await signup(email, username, password, confirm);
+    await signup(email, username, password);
   };
 
   const inputClass =
@@ -76,18 +75,6 @@ export default function SignUpPage() {
             autoComplete="new-password"
           />
         </div>
-        <div>
-          <label className="block text-[13px] font-medium text-text-secondary mb-2">Confirm Password</label>
-          <input
-            type="password"
-            value={confirm}
-            onChange={(e) => { setConfirm(e.target.value); clearError(); }}
-            className={inputClass}
-            placeholder="Confirm password"
-            autoComplete="new-password"
-          />
-        </div>
-
         {error && (
           <p className="text-danger-red text-sm text-center">{error}</p>
         )}

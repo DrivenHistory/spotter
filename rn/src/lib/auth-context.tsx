@@ -13,7 +13,7 @@ interface AuthCtx {
   isLoading: boolean;
   error: string | null;
   login: (email: string, password: string) => Promise<void>;
-  signup: (email: string, username: string, password: string, confirmPassword: string) => Promise<void>;
+  signup: (email: string, username: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   deleteAccount: () => Promise<void>;
   checkSession: () => Promise<void>;
@@ -52,11 +52,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const signup = async (email: string, username: string, password: string, confirmPassword: string) => {
+  const signup = async (email: string, username: string, password: string) => {
     setError(null);
     setIsLoading(true);
     try {
-      await authApi.signup(email, username, password, confirmPassword);
+      await authApi.signup(email, username, password, password);
       await checkSession();
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Signup failed");

@@ -22,6 +22,9 @@ export function SignInForm({
   const [magicLinkSent, setMagicLinkSent] = useState(false);
   const [magicLinkLoading, setMagicLinkLoading] = useState(false);
   const [magicLinkError, setMagicLinkError] = useState<string | null>(null);
+  // Forgot password state
+  const [forgotSent, setForgotSent] = useState(false);
+  const [forgotLoading, setForgotLoading] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Clean up polling on unmount
@@ -38,6 +41,19 @@ export function SignInForm({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     await login(email, password);
+  };
+
+  const handleForgotPassword = async () => {
+    if (!email) {
+      setMagicLinkError("Enter your email first");
+      return;
+    }
+    setForgotLoading(true);
+    try {
+      await authApi.forgotPassword(email);
+      setForgotSent(true);
+    } catch { /* ignore */ }
+    setForgotLoading(false);
   };
 
   const handleMagicLink = async () => {
@@ -179,6 +195,21 @@ export function SignInForm({
           <Mail size={18} className="text-accent-coral" />
           {magicLinkLoading ? "Sending..." : "Email me a sign-in link"}
         </button>
+
+        {/* Forgot password */}
+        <div className="mt-3 text-center">
+          {forgotSent ? (
+            <p className="text-[13px] text-text-secondary">Reset link sent — check your email</p>
+          ) : (
+            <button
+              onClick={handleForgotPassword}
+              disabled={forgotLoading}
+              className="text-[13px] text-accent-coral font-medium disabled:opacity-50"
+            >
+              {forgotLoading ? "Sending..." : "Forgot password?"}
+            </button>
+          )}
+        </div>
 
         <div className="h-5" />
 
