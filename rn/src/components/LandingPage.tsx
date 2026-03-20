@@ -3,73 +3,85 @@
 export function LandingPage({
   onSignIn,
   onSignUp,
+  onGuest,
 }: {
   onSignIn: () => void;
   onSignUp: () => void;
+  onGuest: () => void;
 }) {
   return (
-    <div className="flex flex-col h-dvh bg-bg-page safe-top safe-bottom">
-      <div className="flex-1 flex flex-col items-center justify-center px-10">
-        {/* Glow */}
-        <div className="absolute w-[300px] h-[300px] rounded-full bg-accent-coral/10 blur-3xl pointer-events-none" />
+    <div className="flex flex-col h-dvh bg-bg-page safe-top safe-bottom px-9 pb-10">
+      {/* Top flex spacer */}
+      <div className="flex-1 min-h-[200px]" />
 
-        {/* Coral circle with viewfinder */}
-        <div className="relative w-[140px] h-[140px] mb-8">
+      {/* Logo */}
+      <div className="flex flex-col items-center">
+        <div className="relative w-[160px] h-[160px]">
           <div className="w-full h-full rounded-full bg-accent-coral" />
-          {/* Viewfinder brackets */}
           <svg
-            className="absolute inset-0 m-auto"
-            width="80"
-            height="80"
-            viewBox="-3 -3 86 86"
+            className="absolute top-[35px] left-[35px]"
+            width="90"
+            height="90"
+            viewBox="-3 -3 96 96"
             fill="none"
             stroke="white"
             strokeWidth="5"
             strokeLinecap="round"
             strokeLinejoin="round"
           >
-            <path d="M0 22L0 0L22 0" />
-            <path d="M58 0L80 0L80 22" />
-            <path d="M0 58L0 80L22 80" />
-            <path d="M58 80L80 80L80 58" />
-            <circle cx="40" cy="40" r="14" />
+            <path d="M0 24L0 0L24 0" />
+            <path d="M66 0L90 0L90 24" />
+            <path d="M0 66L0 90L24 90" />
+            <path d="M66 90L90 90L90 66" />
+            <circle cx="45" cy="45" r="15" />
           </svg>
         </div>
 
-        <h1 className="text-[42px] font-semibold tracking-[0.3em] text-text-primary mb-2">
+        <div className="h-10" />
+
+        <h1 className="text-[44px] font-semibold tracking-[12px] text-text-primary">
           SPOTTER
         </h1>
 
-        <p className="text-text-secondary text-[16px] mb-12">
+        <div className="h-2" />
+
+        <p className="text-text-secondary text-[15px] tracking-wide">
           Spot. Identify. Collect.
         </p>
+      </div>
 
-        {/* Buttons */}
-        <div className="w-[300px] space-y-3">
-          <button
-            onClick={onSignIn}
-            className="w-full h-[52px] bg-accent-coral rounded-full text-white font-semibold text-[17px] active:scale-[0.98] transition-transform"
-          >
-            Sign In
-          </button>
+      <div className="h-14" />
 
-          <button
-            onClick={onSignUp}
-            className="w-full h-[52px] border border-border-subtle rounded-full text-text-primary font-semibold text-[17px] active:scale-[0.98] transition-transform"
-          >
-            Create Account
-          </button>
-        </div>
+      {/* Buttons */}
+      <div className="flex flex-col items-center gap-3.5 px-2">
+        <button
+          onClick={onSignIn}
+          className="w-full max-w-[320px] h-[54px] bg-accent-coral rounded-full text-white font-semibold text-[17px] active:scale-[0.98] transition-transform"
+        >
+          Sign In
+        </button>
 
-        <button className="mt-4 text-text-muted text-[14px]">
-          Continue as Guest
+        <button
+          onClick={onSignUp}
+          className="w-full max-w-[320px] h-[54px] border border-border-strong rounded-full text-text-primary font-semibold text-[17px] active:scale-[0.98] transition-transform"
+        >
+          Create Account
         </button>
       </div>
 
+      <div className="h-4" />
+
+      <button onClick={onGuest} className="text-text-muted text-[14px] font-medium self-center">
+        Continue as Guest
+      </button>
+
+      {/* Bottom flex spacer */}
+      <div className="flex-1" />
+
       {/* Footer */}
-      <div className="pb-6 flex items-center justify-center gap-2 opacity-50">
+      <div className="flex items-center justify-center gap-2 opacity-50">
         <span className="text-[11px] text-text-muted">Powered by</span>
-        <span className="text-[11px] font-bold text-text-secondary tracking-wide">DRIVEN HISTORY</span>
+        <img src="/dh-logo-horizontal.png" alt="Driven History" className="h-[28px]" />
       </div>
     </div>
   );
