@@ -113,7 +113,7 @@ export function LeaderboardTab() {
       <h1 className="text-[28px] font-bold text-text-primary mb-4">Leaderboard</h1>
 
       {/* Segment control — scrollable for many tabs */}
-      <div className="flex p-1 bg-bg-card rounded-[20px] h-10 mb-4 overflow-x-auto scrollbar-hide">
+      <div className="flex p-1 bg-bg-card rounded-[20px] h-10 mb-4 mt-2 overflow-x-auto scrollbar-hide">
         {tabs.map((label, i) => (
           <button
             key={label}
@@ -172,61 +172,41 @@ export function LeaderboardTab() {
         )
       ) : selectedTab === 1 ? (
         /* ── Groups Tab ── */
-        <>
-          <p className="text-[13px] text-text-secondary mb-4">
-            See how groups stack up against each other
-          </p>
-          {groupRankings.length === 0 ? (
-            <EmptyState message="No groups yet" sub="Create a group to start competing!" />
-          ) : (
-            <div className="flex flex-col gap-2.5 mb-4">
+        groupRankings.length === 0 ? (
+          <EmptyState message="No groups yet" sub="Create a group to start competing!" />
+        ) : (
+          <>
+            {groupRankings.length >= 2 && (
+              <div className="flex items-end justify-center gap-3 mb-4">
+                <PodiumSlotGeneric name={groupRankings[1].group.name} label={groupRankings[1].group.icon} points={groupRankings[1].group.totalPoints} rank={2} barHeight={60} color="#C0C0C0" avatarSize={48} strokeWidth={2} />
+                <PodiumSlotGeneric name={groupRankings[0].group.name} label={groupRankings[0].group.icon} points={groupRankings[0].group.totalPoints} rank={1} barHeight={80} color="#FFD700" avatarSize={56} strokeWidth={3} showCrown />
+                {groupRankings.length >= 3 ? (
+                  <PodiumSlotGeneric name={groupRankings[2].group.name} label={groupRankings[2].group.icon} points={groupRankings[2].group.totalPoints} rank={3} barHeight={44} color="#CD7F32" avatarSize={44} strokeWidth={2} />
+                ) : (
+                  <div className="flex-1 max-w-[90px]" />
+                )}
+              </div>
+            )}
+            <div className="flex flex-col gap-2 mb-4">
               {groupRankings.map((entry) => {
                 const rank = entry.rank;
-                const rc = RANK_COLORS[rank];
                 return (
-                  <div
-                    key={entry.group.id}
-                    className="flex items-center gap-3.5 p-4 bg-bg-card rounded-[16px]"
-                    style={rc ? { border: `1px solid ${rc.border}` } : undefined}
-                  >
-                    {/* Rank badge */}
-                    <div
-                      className="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
-                      style={{
-                        backgroundColor: rc?.bg ?? "#27272A",
-                      }}
-                    >
-                      <span
-                        className="text-[14px] font-bold"
-                        style={{ color: rc?.text ?? "#71717A" }}
-                      >
-                        {rank}
-                      </span>
-                    </div>
-                    {/* Group icon */}
-                    <div className="w-11 h-11 rounded-[12px] bg-bg-elevated flex items-center justify-center text-[22px] shrink-0">
+                  <div key={entry.group.id} className="flex items-center gap-3 px-4 py-3 bg-bg-card rounded-[12px]">
+                    <span className={`text-[16px] font-bold w-5 text-center ${rank <= 3 ? "text-accent-coral" : "text-text-muted"}`}>{rank}</span>
+                    <div className="w-9 h-9 rounded-full bg-bg-elevated flex items-center justify-center shrink-0 text-[18px]">
                       {entry.group.icon}
                     </div>
-                    {/* Group info */}
                     <div className="flex-1 min-w-0">
-                      <p className="text-[15px] font-semibold text-text-primary truncate">{entry.group.name}</p>
-                      <div className="flex items-center gap-2.5">
-                        <span className="text-[12px] text-text-secondary">{entry.group.memberCount} members</span>
-                        <span className="text-[12px] text-text-muted">·</span>
-                        <span className="text-[12px] text-text-secondary">{entry.group.totalSpots} spots</span>
-                      </div>
+                      <p className="text-[14px] font-semibold text-text-primary truncate">{entry.group.name}</p>
+                      <p className="text-[11px] text-text-muted">{entry.group.memberCount} members · {entry.group.totalSpots} spots</p>
                     </div>
-                    {/* Points */}
-                    <div className="flex flex-col items-end gap-0.5 shrink-0">
-                      <span className="text-[18px] font-bold text-accent-coral">{entry.group.totalPoints.toLocaleString()}</span>
-                      <span className="text-[11px] text-text-muted">pts</span>
-                    </div>
+                    <span className="text-[16px] font-bold text-accent-coral">{entry.group.totalPoints.toLocaleString()}</span>
                   </div>
                 );
               })}
             </div>
-          )}
-        </>
+          </>
+        )
       ) : (
         /* ── Per-Group Tab ── */
         (() => {
@@ -242,30 +222,39 @@ export function LeaderboardTab() {
             );
           }
           if (members.length === 0) return <EmptyState message="No members yet" />;
+          const podiumMembers = members.slice(0, Math.min(members.length, 3));
           return (
-            <div className="flex flex-col gap-2 mb-4">
-              {members.map((m) => {
-                const rc = RANK_COLORS[m.rank];
-                return (
-                  <div key={m.email} className="flex items-center gap-3 px-4 py-3 bg-bg-card rounded-[12px]">
-                    <span
-                      className="text-[16px] font-bold w-5 text-center"
-                      style={{ color: rc?.text ?? "#71717A" }}
-                    >
-                      {m.rank}
-                    </span>
-                    <div className="w-9 h-9 rounded-full bg-bg-elevated flex items-center justify-center shrink-0">
-                      <span className="text-[12px] font-semibold text-text-primary">{initials(m.name)}</span>
+            <>
+              {podiumMembers.length >= 2 && (
+                <div className="flex items-end justify-center gap-3 mb-4">
+                  <PodiumSlotGeneric name={podiumMembers[1].name} label={initials(podiumMembers[1].name)} points={podiumMembers[1].totalPoints} rank={2} barHeight={60} color="#C0C0C0" avatarSize={48} strokeWidth={2} />
+                  <PodiumSlotGeneric name={podiumMembers[0].name} label={initials(podiumMembers[0].name)} points={podiumMembers[0].totalPoints} rank={1} barHeight={80} color="#FFD700" avatarSize={56} strokeWidth={3} showCrown />
+                  {podiumMembers.length >= 3 ? (
+                    <PodiumSlotGeneric name={podiumMembers[2].name} label={initials(podiumMembers[2].name)} points={podiumMembers[2].totalPoints} rank={3} barHeight={44} color="#CD7F32" avatarSize={44} strokeWidth={2} />
+                  ) : (
+                    <div className="flex-1 max-w-[90px]" />
+                  )}
+                </div>
+              )}
+              <div className="flex flex-col gap-2 mb-4">
+                {members.map((m) => {
+                  const rank = m.rank;
+                  return (
+                    <div key={m.email} className="flex items-center gap-3 px-4 py-3 bg-bg-card rounded-[12px]">
+                      <span className={`text-[16px] font-bold w-5 text-center ${rank <= 3 ? "text-accent-coral" : "text-text-muted"}`}>{rank}</span>
+                      <div className="w-9 h-9 rounded-full bg-bg-elevated flex items-center justify-center shrink-0">
+                        <span className="text-[12px] font-semibold text-text-primary">{initials(m.name)}</span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[14px] font-semibold text-text-primary truncate">{m.name}</p>
+                        <p className="text-[11px] text-text-muted">{m.totalSpots} cars spotted</p>
+                      </div>
+                      <span className="text-[16px] font-bold text-accent-coral">{m.totalPoints}</span>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[14px] font-semibold text-text-primary truncate">{m.name}</p>
-                      <p className="text-[11px] text-text-muted">{m.totalSpots} cars spotted</p>
-                    </div>
-                    <span className="text-[16px] font-bold text-accent-coral">{m.totalPoints}</span>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            </>
           );
         })()
       )}
@@ -322,6 +311,48 @@ function EmptyState({ message = "No spots yet", sub = "Be the first to spot a ca
       <p className="text-4xl mb-3">🏆</p>
       <p className="text-[15px] font-medium text-text-secondary">{message}</p>
       <p className="text-[13px] text-text-muted mt-1">{sub}</p>
+    </div>
+  );
+}
+
+function PodiumSlotGeneric({
+  name,
+  label,
+  points,
+  rank,
+  barHeight,
+  color,
+  avatarSize,
+  strokeWidth,
+  showCrown,
+}: {
+  name: string;
+  label: string;
+  points: number;
+  rank: number;
+  barHeight: number;
+  color: string;
+  avatarSize: number;
+  strokeWidth: number;
+  showCrown?: boolean;
+}) {
+  return (
+    <div className="flex-1 flex flex-col items-center gap-2 max-w-[90px]">
+      {showCrown && <Crown size={20} style={{ color }} className="mb-[-4px]" />}
+      <div
+        className="rounded-full bg-bg-elevated flex items-center justify-center shrink-0"
+        style={{ width: avatarSize, height: avatarSize, border: `${strokeWidth}px solid ${color}` }}
+      >
+        <span className="text-[13px] font-semibold text-text-primary">{label}</span>
+      </div>
+      <p className="text-[13px] font-semibold text-text-primary truncate max-w-full">{name.split(" ")[0]}</p>
+      <p className="text-[11px] text-text-secondary">{points.toLocaleString()} pts</p>
+      <div
+        className="w-20 rounded-t-[12px] flex items-center justify-center"
+        style={{ height: barHeight, backgroundColor: `${color}30` }}
+      >
+        <span className="text-[20px] font-bold" style={{ color }}>{rank}</span>
+      </div>
     </div>
   );
 }

@@ -4,10 +4,24 @@ export function SplashScreen() {
   return (
     <div className="flex flex-col items-center justify-center h-dvh bg-bg-page">
       <div className="relative mb-6">
-        <div className="w-20 h-20 rounded-full bg-accent-coral/20 flex items-center justify-center">
-          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#E85A4F" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
-            <circle cx="12" cy="12" r="3" />
+        <div className="relative w-20 h-20">
+          <div className="w-full h-full rounded-full bg-accent-coral" />
+          <svg
+            className="absolute top-[17px] left-[17px]"
+            width="46"
+            height="46"
+            viewBox="-3 -3 96 96"
+            fill="none"
+            stroke="white"
+            strokeWidth="5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M0 24L0 0L24 0" />
+            <path d="M66 0L90 0L90 24" />
+            <path d="M0 66L0 90L24 90" />
+            <path d="M66 90L90 90L90 66" />
+            <circle cx="45" cy="45" r="15" />
           </svg>
         </div>
       </div>
