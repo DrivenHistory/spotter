@@ -1,23 +1,69 @@
 "use client";
 
-import { ArrowLeft, Zap } from "lucide-react";
+import { useRef, useCallback } from "react";
+import { ArrowLeft, ChevronLeft, ChevronRight, Zap } from "lucide-react";
 import { type SpottedCar } from "@/lib/api";
 import { points } from "@/lib/rarity";
 import { RarityBadge } from "@/components/ui";
 import { relativeTime } from "@/lib/time";
 
-export function CarDetailView({ car, onBack }: { car: SpottedCar; onBack: () => void }) {
+export function CarDetailView({
+  car,
+  onBack,
+  onNext,
+  onPrev,
+}: {
+  car: SpottedCar;
+  onBack: () => void;
+  onNext?: () => void;
+  onPrev?: () => void;
+}) {
   const displayName = [car.year, car.make, car.model].filter(Boolean).join(" ");
   const pts = points(car.rarity);
 
+  // Swipe handling
+  const touchStartX = useRef(0);
+  const touchStartY = useRef(0);
+
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+  }, []);
+
+  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+    const dx = e.changedTouches[0].clientX - touchStartX.current;
+    const dy = e.changedTouches[0].clientY - touchStartY.current;
+    // Only trigger if horizontal swipe is dominant and > 60px
+    if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+      if (dx < 0 && onNext) onNext();
+      else if (dx > 0 && onPrev) onPrev();
+    }
+  }, [onNext, onPrev]);
+
   return (
-    <div className="h-full overflow-y-auto scrollbar-hide px-5 pb-24">
+    <div
+      className="h-full overflow-y-auto scrollbar-hide px-5 pb-24"
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+    >
       {/* Nav bar */}
       <div className="flex items-center justify-between mb-4">
         <button onClick={onBack} className="text-text-primary">
           <ArrowLeft size={24} />
         </button>
-        <span className="text-[18px] font-semibold text-text-primary">Car Details</span>
+        <div className="flex items-center gap-3">
+          {onPrev && (
+            <button onClick={onPrev} className="text-text-muted active:text-text-primary">
+              <ChevronLeft size={20} />
+            </button>
+          )}
+          <span className="text-[18px] font-semibold text-text-primary">Car Details</span>
+          {onNext && (
+            <button onClick={onNext} className="text-text-muted active:text-text-primary">
+              <ChevronRight size={20} />
+            </button>
+          )}
+        </div>
         <div className="w-6" />
       </div>
 

@@ -8,6 +8,7 @@ import { spotter, type SpottedCar } from "@/lib/api";
 import { points } from "@/lib/rarity";
 import { relativeTime } from "@/lib/time";
 import { RarityBadge } from "@/components/ui";
+import { CarDetailView } from "@/components/CarDetailView";
 
 const RARE_TIERS = ["Rare", "Very Rare", "Extremely Rare"];
 
@@ -16,6 +17,7 @@ export function CommunityTab({ onProfile }: { onProfile?: () => void }) {
   const { pendingInvites, acceptInvite, declineInvite } = useGroups();
   const [allSpots, setAllSpots] = useState<SpottedCar[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedCar, setSelectedCar] = useState<SpottedCar | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -45,6 +47,28 @@ export function CommunityTab({ onProfile }: { onProfile?: () => void }) {
     const parts = name.split(" ");
     return parts.length >= 2 ? (parts[0][0] + parts[1][0]).toUpperCase() : name.slice(0, 2).toUpperCase();
   })();
+
+  // Combined list for swipe navigation: top rare first, then recent activity
+  const allNavigable = useMemo(() => {
+    const seen = new Set<string>();
+    const list: SpottedCar[] = [];
+    for (const c of [...topRare, ...recentActivity]) {
+      if (!seen.has(c.id)) { seen.add(c.id); list.push(c); }
+    }
+    return list;
+  }, [topRare, recentActivity]);
+
+  if (selectedCar) {
+    const idx = allNavigable.findIndex((c) => c.id === selectedCar.id);
+    return (
+      <CarDetailView
+        car={selectedCar}
+        onBack={() => setSelectedCar(null)}
+        onNext={idx < allNavigable.length - 1 ? () => setSelectedCar(allNavigable[idx + 1]) : undefined}
+        onPrev={idx > 0 ? () => setSelectedCar(allNavigable[idx - 1]) : undefined}
+      />
+    );
+  }
 
   return (
     <div className="h-full overflow-y-auto scrollbar-hide px-5 pb-24">
@@ -108,7 +132,7 @@ export function CommunityTab({ onProfile }: { onProfile?: () => void }) {
           {/* Carousel breaks out of px-5 to scroll edge-to-edge */}
           <div className="flex gap-3 overflow-x-auto scrollbar-hide -mx-5 px-5">
             {topRare.map((car) => (
-              <RareCard key={car.id} car={car} />
+              <RareCard key={car.id} car={car} onTap={() => setSelectedCar(car)} />
             ))}
           </div>
         </div>
@@ -123,7 +147,7 @@ export function CommunityTab({ onProfile }: { onProfile?: () => void }) {
       ) : (
         <div className="flex flex-col gap-3">
           {recentActivity.map((car) => (
-            <ActivityRow key={car.id} car={car} />
+            <ActivityRow key={car.id} car={car} onTap={() => setSelectedCar(car)} />
           ))}
           {recentActivity.length === 0 && (
             <div className="flex flex-col items-center py-12 text-center">
@@ -153,10 +177,10 @@ export function CommunityTab({ onProfile }: { onProfile?: () => void }) {
   );
 }
 
-function RareCard({ car }: { car: SpottedCar }) {
+function RareCard({ car, onTap }: { car: SpottedCar; onTap: () => void }) {
   const displayName = [car.year, car.make, car.model].filter(Boolean).join(" ");
   return (
-    <div className="shrink-0 w-[170px] rounded-[16px] bg-bg-card overflow-hidden flex flex-col">
+    <button onClick={onTap} className="shrink-0 w-[170px] rounded-[16px] bg-bg-card overflow-hidden flex flex-col text-left">
       {car.imageUrl ? (
         <img src={car.imageUrl} alt={displayName} className="w-full h-[120px] object-cover shrink-0" />
       ) : (
@@ -169,14 +193,14 @@ function RareCard({ car }: { car: SpottedCar }) {
           <span className="text-[11px] text-text-muted">by {(car.spotterName || car.spotterEmail.split("@")[0]).split(" ")[0]}</span>
         </div>
       </div>
-    </div>
+    </button>
   );
 }
 
-function ActivityRow({ car }: { car: SpottedCar }) {
+function ActivityRow({ car, onTap }: { car: SpottedCar; onTap: () => void }) {
   const displayName = [car.year, car.make, car.model].filter(Boolean).join(" ");
   return (
-    <div className="flex items-center gap-3 p-3 bg-bg-card rounded-[12px]">
+    <button onClick={onTap} className="flex items-center gap-3 p-3 bg-bg-card rounded-[12px] text-left w-full">
       {car.imageUrl ? (
         <img src={car.imageUrl} alt="" className="w-14 h-14 rounded-[8px] object-cover shrink-0" />
       ) : (
@@ -189,6 +213,6 @@ function ActivityRow({ car }: { car: SpottedCar }) {
         </p>
       </div>
       {car.rarity && <RarityBadge rarity={car.rarity} />}
-    </div>
+    </button>
   );
 }

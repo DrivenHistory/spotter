@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { Check, X, Mail } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { spotter, user as userApi, type SpottedCar } from "@/lib/api";
@@ -61,8 +61,25 @@ export function HomeTab({ onProfile }: { onProfile?: () => void }) {
   const hour = new Date().getHours();
   const timeGreeting = hour < 12 ? "Good morning," : hour < 18 ? "Good afternoon," : "Good evening,";
 
+  const allNavigable = useMemo(() => {
+    const seen = new Set<string>();
+    const list: SpottedCar[] = [];
+    for (const c of [...weeklySpots.slice(0, 10), ...feed]) {
+      if (!seen.has(c.id)) { seen.add(c.id); list.push(c); }
+    }
+    return list;
+  }, [weeklySpots, feed]);
+
   if (selectedCar) {
-    return <CarDetailView car={selectedCar} onBack={() => setSelectedCar(null)} />;
+    const idx = allNavigable.findIndex((c) => c.id === selectedCar.id);
+    return (
+      <CarDetailView
+        car={selectedCar}
+        onBack={() => setSelectedCar(null)}
+        onNext={idx < allNavigable.length - 1 ? () => setSelectedCar(allNavigable[idx + 1]) : undefined}
+        onPrev={idx > 0 ? () => setSelectedCar(allNavigable[idx - 1]) : undefined}
+      />
+    );
   }
 
   return (

@@ -30,7 +30,15 @@ export function CarsTab({ onLogin }: { onLogin: () => void }) {
   ).length;
 
   if (selectedCar) {
-    return <CarDetailView car={selectedCar} onBack={() => setSelectedCar(null)} />;
+    const idx = cars.findIndex((c) => c.id === selectedCar.id);
+    return (
+      <CarDetailView
+        car={selectedCar}
+        onBack={() => setSelectedCar(null)}
+        onNext={idx < cars.length - 1 ? () => setSelectedCar(cars[idx + 1]) : undefined}
+        onPrev={idx > 0 ? () => setSelectedCar(cars[idx - 1]) : undefined}
+      />
+    );
   }
 
   return (
