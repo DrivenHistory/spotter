@@ -21,7 +21,8 @@ interface GroupsCtx {
   pendingInvites: GroupInvite[];
   isLoading: boolean;
   refreshGroups: () => Promise<void>;
-  createGroup: (name: string, icon: string) => Promise<Group>;
+  createGroup: (name: string, icon: string, vehicleFilterType?: "all" | "specific", vehicleMake?: string, vehicleModel?: string) => Promise<Group>;
+  joinByCode: (code: string) => Promise<{ ok: boolean; groupId?: string; error?: string }>;
   acceptInvite: (inviteId: string) => Promise<void>;
   declineInvite: (inviteId: string) => Promise<void>;
   leaveGroup: (groupId: string) => Promise<void>;
@@ -65,9 +66,9 @@ export function GroupsProvider({ children }: { children: ReactNode }) {
     }
   }, [user, refreshGroups]);
 
-  const createGroup = async (name: string, icon: string): Promise<Group> => {
+  const createGroup = async (name: string, icon: string, vehicleFilterType?: "all" | "specific", vehicleMake?: string, vehicleModel?: string): Promise<Group> => {
     try {
-      const { group } = await groupsApi.create(name, icon);
+      const { group } = await groupsApi.create(name, icon, vehicleFilterType, vehicleMake, vehicleModel);
       await refreshGroups();
       return group;
     } catch {
@@ -82,6 +83,9 @@ export function GroupsProvider({ children }: { children: ReactNode }) {
         totalSpots: 0,
         totalPoints: 0,
         createdAt: new Date().toISOString(),
+        vehicleFilterType: vehicleFilterType ?? "all",
+        vehicleMake: vehicleMake ?? null,
+        vehicleModel: vehicleModel ?? null,
       };
       const membership: GroupMembership = {
         group: localGroup,
@@ -91,6 +95,12 @@ export function GroupsProvider({ children }: { children: ReactNode }) {
       setMyGroups((prev) => [...prev, membership]);
       return localGroup;
     }
+  };
+
+  const joinByCode = async (code: string) => {
+    const result = await groupsApi.joinByCode(code);
+    if (result.ok) await refreshGroups();
+    return result;
   };
 
   const acceptInvite = async (inviteId: string) => {
@@ -116,6 +126,7 @@ export function GroupsProvider({ children }: { children: ReactNode }) {
         isLoading,
         refreshGroups,
         createGroup,
+        joinByCode,
         acceptInvite,
         declineInvite,
         leaveGroup,

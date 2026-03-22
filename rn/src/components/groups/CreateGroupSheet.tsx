@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Info, CircleCheckBig } from "lucide-react";
+import { Plus, Info, CircleCheckBig, Filter } from "lucide-react";
 import { BottomSheet } from "@/components/BottomSheet";
 import { useGroups } from "@/lib/groups-context";
 import type { Group } from "@/lib/api";
@@ -21,16 +21,34 @@ export function CreateGroupSheet({ open, onClose, onCreated }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  // Vehicle filter state
+  const [filterType, setFilterType] = useState<"all" | "specific">("all");
+  const [vehicleMake, setVehicleMake] = useState("");
+  const [vehicleModel, setVehicleModel] = useState("");
+
   const handleCreate = async () => {
     const trimmed = name.trim();
     if (!trimmed) { setError("Please enter a group name"); return; }
     if (trimmed.length < 2) { setError("Name must be at least 2 characters"); return; }
+    if (filterType === "specific") {
+      if (!vehicleMake.trim()) { setError("Please enter a vehicle make"); return; }
+      if (!vehicleModel.trim()) { setError("Please enter a vehicle model"); return; }
+    }
     setError(null);
     setSubmitting(true);
     try {
-      const group = await createGroup(trimmed, icon);
+      const group = await createGroup(
+        trimmed,
+        icon,
+        filterType,
+        filterType === "specific" ? vehicleMake.trim() : undefined,
+        filterType === "specific" ? vehicleModel.trim() : undefined
+      );
       setName("");
       setIcon(ICONS[0]);
+      setFilterType("all");
+      setVehicleMake("");
+      setVehicleModel("");
       onCreated(group);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Failed to create group");
@@ -80,8 +98,60 @@ export function CreateGroupSheet({ open, onClose, onCreated }: Props) {
           </div>
         </div>
 
-        {/* Spacer */}
-        <div className="flex-1" />
+        {/* Vehicle Filter */}
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center gap-1.5">
+            <Filter size={14} className="text-text-secondary" />
+            <label className="text-[13px] font-semibold text-text-secondary">Vehicle Filter</label>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setFilterType("all")}
+              className={`flex-1 h-10 rounded-[10px] text-[13px] font-medium transition-all ${
+                filterType === "all"
+                  ? "bg-accent-coral text-white"
+                  : "bg-bg-elevated text-text-secondary"
+              }`}
+            >
+              All Models
+            </button>
+            <button
+              onClick={() => setFilterType("specific")}
+              className={`flex-1 h-10 rounded-[10px] text-[13px] font-medium transition-all ${
+                filterType === "specific"
+                  ? "bg-accent-coral text-white"
+                  : "bg-bg-elevated text-text-secondary"
+              }`}
+            >
+              Specific Make/Model
+            </button>
+          </div>
+
+          {filterType === "specific" && (
+            <div className="flex gap-2 mt-1">
+              <input
+                type="text"
+                value={vehicleMake}
+                onChange={(e) => { setVehicleMake(e.target.value); setError(null); }}
+                placeholder="Make (e.g. Porsche)"
+                className="flex-1 h-11 rounded-[10px] bg-bg-elevated border border-border-subtle px-3 text-[14px] text-text-primary placeholder:text-text-muted outline-none focus:border-accent-coral transition-colors"
+              />
+              <input
+                type="text"
+                value={vehicleModel}
+                onChange={(e) => { setVehicleModel(e.target.value); setError(null); }}
+                placeholder="Model (e.g. 911)"
+                className="flex-1 h-11 rounded-[10px] bg-bg-elevated border border-border-subtle px-3 text-[14px] text-text-primary placeholder:text-text-muted outline-none focus:border-accent-coral transition-colors"
+              />
+            </div>
+          )}
+
+          <span className="text-[11px] text-text-muted">
+            {filterType === "all"
+              ? "All spotted cars will count toward this group's points"
+              : "Only matching spots will earn points in this group"}
+          </span>
+        </div>
 
         {/* Note */}
         <div className="flex items-center justify-center gap-1.5">

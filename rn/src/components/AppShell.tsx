@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Home, Car, Crosshair, Users, Trophy } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
+import { useGroups } from "@/lib/groups-context";
 import { spotter } from "@/lib/api";
 import { HomeTab } from "@/components/tabs/HomeTab";
 import { CarsTab } from "@/components/tabs/CarsTab";
@@ -21,9 +22,23 @@ const TABS = [
 
 export function AppShell({ onLogin, onSignUp }: { onLogin: () => void; onSignUp: () => void }) {
   const { user } = useAuth();
+  const { joinByCode, refreshGroups } = useGroups();
   const [tab, setTab] = useState(0);
   const [showProfile, setShowProfile] = useState(false);
   const pendingSaveAttempted = useRef(false);
+  const pendingInviteAttempted = useRef(false);
+
+  // Auto-join group if a pending invite code is stored (from deep link)
+  useEffect(() => {
+    if (!user || pendingInviteAttempted.current) return;
+    pendingInviteAttempted.current = true;
+    try {
+      const code = sessionStorage.getItem("dh_pending_invite_code");
+      if (!code) return;
+      sessionStorage.removeItem("dh_pending_invite_code");
+      joinByCode(code).then(() => refreshGroups()).catch(() => {});
+    } catch {}
+  }, [user, joinByCode, refreshGroups]);
 
   // Auto-save pending spot after login/signup
   useEffect(() => {

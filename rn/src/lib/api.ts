@@ -85,6 +85,9 @@ export interface Group {
   totalSpots: number;
   totalPoints: number;
   createdAt: string;
+  vehicleFilterType: "all" | "specific";
+  vehicleMake: string | null;
+  vehicleModel: string | null;
 }
 
 export interface GroupMembership {
@@ -127,10 +130,15 @@ export interface UserSearchResult {
 }
 
 export const groups = {
-  create: (name: string, icon: string) =>
+  create: (name: string, icon: string, vehicleFilterType?: "all" | "specific", vehicleMake?: string, vehicleModel?: string) =>
     request<{ group: Group }>("/api/groups", {
       method: "POST",
-      body: JSON.stringify({ name, icon }),
+      body: JSON.stringify({ name, icon, vehicleFilterType, vehicleMake, vehicleModel }),
+    }),
+  joinByCode: (code: string) =>
+    request<{ ok: boolean; groupId?: string; error?: string }>("/api/groups/join", {
+      method: "POST",
+      body: JSON.stringify({ code }),
     }),
   getMyGroups: () =>
     request<{ memberships: GroupMembership[] }>("/api/groups/mine"),
