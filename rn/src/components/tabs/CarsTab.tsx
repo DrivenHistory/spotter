@@ -37,6 +37,11 @@ export function CarsTab({ onLogin }: { onLogin: () => void }) {
         onBack={() => setSelectedCar(null)}
         onNext={idx < cars.length - 1 ? () => setSelectedCar(cars[idx + 1]) : undefined}
         onPrev={idx > 0 ? () => setSelectedCar(cars[idx - 1]) : undefined}
+        canDelete
+        onDelete={(id) => {
+          setCars((prev) => prev.filter((c) => c.id !== id));
+          setSelectedCar(null);
+        }}
       />
     );
   }

@@ -1,8 +1,8 @@
 "use client";
 
-import { useRef, useCallback } from "react";
-import { ArrowLeft, ChevronLeft, ChevronRight, Zap } from "lucide-react";
-import { type SpottedCar } from "@/lib/api";
+import { useState, useRef, useCallback } from "react";
+import { ArrowLeft, ChevronLeft, ChevronRight, Zap, Trash2 } from "lucide-react";
+import { type SpottedCar, spotter } from "@/lib/api";
 import { points } from "@/lib/rarity";
 import { RarityBadge } from "@/components/ui";
 import { relativeTime } from "@/lib/time";
@@ -12,14 +12,33 @@ export function CarDetailView({
   onBack,
   onNext,
   onPrev,
+  onDelete,
+  canDelete = false,
 }: {
   car: SpottedCar;
   onBack: () => void;
   onNext?: () => void;
   onPrev?: () => void;
+  onDelete?: (id: string) => void;
+  canDelete?: boolean;
 }) {
   const displayName = [car.year, car.make, car.model].filter(Boolean).join(" ");
   const pts = points(car.rarity);
+
+  const [confirmDel, setConfirmDel] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  async function handleDelete() {
+    if (!confirmDel) { setConfirmDel(true); return; }
+    setDeleting(true);
+    try {
+      await spotter.delete(car.id);
+      onDelete?.(car.id);
+    } catch {
+      setDeleting(false);
+      setConfirmDel(false);
+    }
+  }
 
   // Swipe handling
   const touchStartX = useRef(0);
@@ -64,7 +83,24 @@ export function CarDetailView({
             </button>
           )}
         </div>
-        <div className="w-6" />
+        {canDelete ? (
+          <button
+            onClick={handleDelete}
+            disabled={deleting}
+            className="flex items-center gap-1 px-2 py-1 rounded-lg text-[12px] font-semibold"
+            style={{
+              background: confirmDel ? "rgba(239,68,68,0.12)" : "transparent",
+              border: confirmDel ? "1px solid rgba(239,68,68,0.3)" : "1px solid transparent",
+              color: confirmDel ? "#EF4444" : "#6B6B70",
+              opacity: deleting ? 0.5 : 1,
+            }}
+          >
+            <Trash2 size={14} />
+            {confirmDel ? "Confirm" : ""}
+          </button>
+        ) : (
+          <div className="w-6" />
+        )}
       </div>
 
       {/* Car image */}
