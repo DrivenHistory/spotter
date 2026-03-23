@@ -268,7 +268,7 @@ export function SpotTab({ active, onSaved, onClose, onLogin, onSignUp }: { activ
                 className="relative active:scale-95 transition-transform"
               >
                 <div className="w-[72px] h-[72px] rounded-full border-[4px] border-white flex items-center justify-center">
-                  <div className="w-[58px] h-[58px] rounded-full bg-accent-coral" />
+                  <div className="w-[58px] h-[58px] rounded-full bg-white" />
                 </div>
               </button>
 
