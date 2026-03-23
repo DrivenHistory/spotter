@@ -5,3 +5,4 @@ ios/App/Pods/
 *.xcworkspace
 DerivedData/
 .DS_Store
+*.tsbuildinfo
