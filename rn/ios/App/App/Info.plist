@@ -24,8 +24,6 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
-	<key>NSFaceIDUsageDescription</key>
-	<string>Spotter uses Face ID to secure your account and protect your data.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Spotter needs camera access to photograph and identify cars.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
