@@ -26,6 +26,7 @@ interface GroupsCtx {
   acceptInvite: (inviteId: string) => Promise<void>;
   declineInvite: (inviteId: string) => Promise<void>;
   leaveGroup: (groupId: string) => Promise<void>;
+  deleteGroup: (groupId: string) => Promise<void>;
 }
 
 const GroupsContext = createContext<GroupsCtx | null>(null);
@@ -118,6 +119,11 @@ export function GroupsProvider({ children }: { children: ReactNode }) {
     await refreshGroups();
   };
 
+  const deleteGroup = async (groupId: string) => {
+    await groupsApi.delete(groupId);
+    await refreshGroups();
+  };
+
   return (
     <GroupsContext.Provider
       value={{
@@ -130,6 +136,7 @@ export function GroupsProvider({ children }: { children: ReactNode }) {
         acceptInvite,
         declineInvite,
         leaveGroup,
+        deleteGroup,
       }}
     >
       {children}

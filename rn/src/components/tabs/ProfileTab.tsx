@@ -17,12 +17,13 @@ interface Settings {
 
 export function ProfileTab({ onBack }: { onBack?: () => void }) {
   const { user, logout, deleteAccount } = useAuth();
-  const { myGroups, pendingInvites, acceptInvite, declineInvite, leaveGroup } = useGroups();
+  const { myGroups, pendingInvites, acceptInvite, declineInvite, leaveGroup, deleteGroup } = useGroups();
   const [settings, setSettings] = useState<Settings | null>(null);
   const [showEdit, setShowEdit] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [showLeaveConfirm, setShowLeaveConfirm] = useState<string | null>(null);
+  const [showDeleteGroupConfirm, setShowDeleteGroupConfirm] = useState<string | null>(null);
   const [inviteGroup, setInviteGroup] = useState<Group | null>(null);
   const [stats, setStats] = useState<{ spotted: number; pts: number; rank: number | null }>({ spotted: 0, pts: 0, rank: null });
 
@@ -158,12 +159,20 @@ export function ProfileTab({ onBack }: { onBack?: () => void }) {
                   </div>
                 </div>
                 {m.role === "creator" ? (
-                  <button
-                    onClick={() => setInviteGroup(m.group)}
-                    className="w-9 h-9 rounded-[8px] bg-bg-elevated flex items-center justify-center"
-                  >
-                    <UserPlus size={18} className="text-accent-coral" />
-                  </button>
+                  <div className="flex gap-1.5">
+                    <button
+                      onClick={() => setInviteGroup(m.group)}
+                      className="w-9 h-9 rounded-[8px] bg-bg-elevated flex items-center justify-center"
+                    >
+                      <UserPlus size={18} className="text-accent-coral" />
+                    </button>
+                    <button
+                      onClick={() => setShowDeleteGroupConfirm(m.group.id)}
+                      className="w-9 h-9 rounded-[8px] bg-danger-red/10 flex items-center justify-center"
+                    >
+                      <Trash2 size={16} className="text-danger-red" />
+                    </button>
+                  </div>
                 ) : (
                   <button
                     onClick={() => setShowLeaveConfirm(m.group.id)}
@@ -239,6 +248,18 @@ export function ProfileTab({ onBack }: { onBack?: () => void }) {
           danger
           onCancel={() => setShowLeaveConfirm(null)}
           onConfirm={async () => { await leaveGroup(showLeaveConfirm).catch(() => {}); setShowLeaveConfirm(null); }}
+        />
+      )}
+
+      {/* Delete group confirm */}
+      {showDeleteGroupConfirm && (
+        <ConfirmModal
+          title="Delete Group"
+          message="This will permanently delete the group and remove all members. This cannot be undone."
+          confirmLabel="Delete"
+          danger
+          onCancel={() => setShowDeleteGroupConfirm(null)}
+          onConfirm={async () => { await deleteGroup(showDeleteGroupConfirm).catch(() => {}); setShowDeleteGroupConfirm(null); }}
         />
       )}
 

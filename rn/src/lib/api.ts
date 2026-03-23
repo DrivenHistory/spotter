@@ -156,6 +156,10 @@ export const groups = {
     request<{ ok: boolean }>(`/api/groups/${groupId}/leave`, {
       method: "POST",
     }),
+  delete: (groupId: string) =>
+    request<{ ok: boolean }>(`/api/groups/${groupId}`, {
+      method: "DELETE",
+    }),
   getInviteLink: (groupId: string) =>
     request<InviteLink>(`/api/groups/${groupId}/invite-link`, {
       method: "POST",
