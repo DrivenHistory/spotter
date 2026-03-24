@@ -217,14 +217,53 @@ export interface IdentifyResult {
   topSpeed?: string;
 }
 
+// Compress an image to stay under maxBytes using canvas
+async function compressImage(file: File, maxBytes: number): Promise<File> {
+  if (file.size <= maxBytes) return file;
+  return new Promise((resolve) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const canvas = document.createElement("canvas");
+      let { width, height } = img;
+      const scale = Math.sqrt(maxBytes / file.size);
+      width = Math.round(width * scale);
+      height = Math.round(height * scale);
+      canvas.width = width;
+      canvas.height = height;
+      canvas.getContext("2d")!.drawImage(img, 0, 0, width, height);
+      canvas.toBlob(
+        (blob) => resolve(blob ? new File([blob], file.name, { type: "image/jpeg" }) : file),
+        "image/jpeg",
+        0.85,
+      );
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
+    img.src = url;
+  });
+}
+
 export const spotter = {
   identify: async (file: File): Promise<IdentifyResult> => {
-    const form = new FormData();
-    form.append("file", file);
+    // Compress to ≤4 MB to stay under Vercel's 4.5 MB serverless body limit
+    const compressed = await compressImage(file, 4 * 1024 * 1024);
+
+    // Upload directly to Vercel Blob from the browser (bypasses serverless size limit)
+    const { upload } = await import("@vercel/blob/client");
+    const ext = (compressed.name.split(".").pop() ?? "jpg").toLowerCase();
+    const blob = await upload(
+      `spotter/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`,
+      compressed,
+      { access: "public", handleUploadUrl: `${BASE_URL}/api/spotter/upload` }
+    );
+
+    // Send the Blob URL to the identify endpoint (JSON, not file — no size limit)
     const res = await fetch(`${BASE_URL}/api/ai/identify`, {
       method: "POST",
       credentials: "include",
-      body: form,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ imageUrl: blob.url }),
     });
     if (!res.ok) {
       const text = await res.text().catch(() => "");
