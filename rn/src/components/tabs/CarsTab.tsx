@@ -1,19 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ArrowRight, Car, LogIn } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { spotter, type SpottedCar } from "@/lib/api";
 import { points } from "@/lib/rarity";
 import { CarDetailView } from "@/components/CarDetailView";
 
-export function CarsTab({ onLogin, refreshKey = 0, active = false }: { onLogin: () => void; refreshKey?: number; active?: boolean }) {
+export function CarsTab({ onLogin, active = false, newSpot }: { onLogin: () => void; active?: boolean; newSpot?: SpottedCar | null }) {
   const { user } = useAuth();
   const [cars, setCars] = useState<SpottedCar[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCar, setSelectedCar] = useState<SpottedCar | null>(null);
 
-  // Re-fetch whenever refreshKey changes OR the tab becomes active (catches API race conditions)
+  // Re-fetch when tab becomes active
   useEffect(() => {
     if (!user || !active) return;
     setLoading(true);
@@ -24,21 +24,28 @@ export function CarsTab({ onLogin, refreshKey = 0, active = false }: { onLogin: 
       } catch { /* ignore */ }
       setLoading(false);
     })();
-  }, [user, refreshKey, active]);
+  }, [user, active]);
 
-  const totalPts = cars.reduce((s, c) => s + points(c.rarity), 0);
-  const rareCount = cars.filter((c) =>
+  // Optimistically prepend any newly saved spot so it shows instantly without waiting for re-fetch
+  const displayCars = useMemo(() => {
+    if (!newSpot) return cars;
+    const alreadyInList = cars.some((c) => c.id === newSpot.id);
+    return alreadyInList ? cars : [newSpot, ...cars];
+  }, [cars, newSpot]);
+
+  const totalPts = displayCars.reduce((s, c) => s + points(c.rarity), 0);
+  const rareCount = displayCars.filter((c) =>
     ["Rare", "Very Rare", "Extremely Rare"].includes(c.rarity ?? "")
   ).length;
 
   if (selectedCar) {
-    const idx = cars.findIndex((c) => c.id === selectedCar.id);
+    const idx = displayCars.findIndex((c) => c.id === selectedCar.id);
     return (
       <CarDetailView
         car={selectedCar}
         onBack={() => setSelectedCar(null)}
-        onNext={idx < cars.length - 1 ? () => setSelectedCar(cars[idx + 1]) : undefined}
-        onPrev={idx > 0 ? () => setSelectedCar(cars[idx - 1]) : undefined}
+        onNext={idx < displayCars.length - 1 ? () => setSelectedCar(displayCars[idx + 1]) : undefined}
+        onPrev={idx > 0 ? () => setSelectedCar(displayCars[idx - 1]) : undefined}
         canDelete
         onDelete={(id) => {
           setCars((prev) => prev.filter((c) => c.id !== id));
@@ -72,7 +79,7 @@ export function CarsTab({ onLogin, refreshKey = 0, active = false }: { onLogin: 
           {/* Stats */}
           <div className="flex gap-3 mb-4">
             <div className="flex-1 flex flex-col items-center justify-center rounded-[12px] bg-bg-card p-3 gap-0.5">
-              <span className="text-[24px] font-bold text-text-primary">{cars.length}</span>
+              <span className="text-[24px] font-bold text-text-primary">{displayCars.length}</span>
               <span className="text-[11px] text-text-secondary">Total</span>
             </div>
             <div className="flex-1 flex flex-col items-center justify-center rounded-[12px] bg-bg-card p-3 gap-0.5">
@@ -89,7 +96,7 @@ export function CarsTab({ onLogin, refreshKey = 0, active = false }: { onLogin: 
             <div className="flex justify-center py-12">
               <div className="w-6 h-6 border-2 border-accent-coral border-t-transparent rounded-full animate-spin" />
             </div>
-          ) : cars.length === 0 ? (
+          ) : displayCars.length === 0 ? (
             <div className="flex flex-col items-center py-16 text-center">
               <div className="text-4xl mb-3 text-text-tertiary">🚗</div>
               <p className="text-[16px] font-medium text-text-secondary">No cars spotted yet</p>
@@ -97,7 +104,7 @@ export function CarsTab({ onLogin, refreshKey = 0, active = false }: { onLogin: 
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-3">
-              {cars.map((car) => (
+              {displayCars.map((car) => (
                 <CarCard key={car.id} car={car} onTap={() => setSelectedCar(car)} />
               ))}
             </div>

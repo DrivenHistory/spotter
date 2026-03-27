@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Home, Car, Crosshair, Users, Trophy } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useGroups } from "@/lib/groups-context";
-import { spotter } from "@/lib/api";
+import { spotter, type SpottedCar } from "@/lib/api";
 import { HomeTab } from "@/components/tabs/HomeTab";
 import { CarsTab } from "@/components/tabs/CarsTab";
 import { SpotTab, getPendingSpot, clearPendingSpot } from "@/components/tabs/SpotTab";
@@ -26,6 +26,7 @@ export function AppShell({ onLogin, onSignUp }: { onLogin: () => void; onSignUp:
   const [tab, setTab] = useState(0);
   const [showProfile, setShowProfile] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [lastSavedSpot, setLastSavedSpot] = useState<SpottedCar | null>(null);
   const pendingSaveAttempted = useRef(false);
   const pendingInviteAttempted = useRef(false);
 
@@ -76,8 +77,8 @@ export function AppShell({ onLogin, onSignUp }: { onLogin: () => void; onSignUp:
         ) : (
           <>
             <div className={tab === 0 ? "h-full" : "hidden"}><HomeTab onProfile={() => setShowProfile(true)} /></div>
-            <div className={tab === 1 ? "h-full" : "hidden"}><CarsTab onLogin={onLogin} refreshKey={refreshKey} active={tab === 1} /></div>
-            <div className={tab === 2 ? "h-full" : "hidden"}><SpotTab active={tab === 2} onSaved={() => setRefreshKey((k) => k + 1)} onClose={() => setTab(0)} onLogin={onLogin} onSignUp={onSignUp} /></div>
+            <div className={tab === 1 ? "h-full" : "hidden"}><CarsTab onLogin={onLogin} active={tab === 1} newSpot={lastSavedSpot} /></div>
+            <div className={tab === 2 ? "h-full" : "hidden"}><SpotTab active={tab === 2} onSaved={(spot) => { setLastSavedSpot(spot); setRefreshKey((k) => k + 1); }} onClose={() => setTab(0)} onLogin={onLogin} onSignUp={onSignUp} /></div>
             <div className={tab === 3 ? "h-full" : "hidden"}><CommunityTab onProfile={() => setShowProfile(true)} /></div>
             <div className={tab === 4 ? "h-full" : "hidden"}><LeaderboardTab refreshKey={refreshKey} /></div>
           </>

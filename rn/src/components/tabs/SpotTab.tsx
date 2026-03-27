@@ -60,7 +60,7 @@ export function clearPendingSpot() {
 const CAMERA_INPUT_ID = "spot-camera-input";
 const GALLERY_INPUT_ID = "spot-gallery-input";
 
-export function SpotTab({ active, onSaved, onClose, onLogin, onSignUp }: { active: boolean; onSaved: () => void; onClose: () => void; onLogin: () => void; onSignUp: () => void }) {
+export function SpotTab({ active, onSaved, onClose, onLogin, onSignUp }: { active: boolean; onSaved: (spot: SpottedCar) => void; onClose: () => void; onLogin: () => void; onSignUp: () => void }) {
   const { user } = useAuth();
   const cameraRef = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState<string | null>(null);
@@ -102,7 +102,7 @@ export function SpotTab({ active, onSaved, onClose, onLogin, onSignUp }: { activ
     if (!result) return;
     setSaving(true);
     try {
-      await spotter.save({
+      const spot = await spotter.save({
         make: result.make,
         model: result.model,
         year: result.year,
@@ -116,8 +116,8 @@ export function SpotTab({ active, onSaved, onClose, onLogin, onSignUp }: { activ
         zeroToSixty: result.zeroToSixty,
         topSpeed: result.topSpeed,
       });
-      setSaved({} as SpottedCar);
-      onSaved(); // bump refreshKey in parent so CarsTab reloads
+      setSaved(spot);
+      onSaved(spot); // pass spot to parent so CarsTab shows it immediately
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Save failed");
     }
