@@ -282,7 +282,7 @@ export const spotter = {
       method: "POST",
       body: JSON.stringify(data),
     }),
-  getFeed: () => request<{ spots: SpottedCar[] }>("/api/spotter"),
+  getFeed: () => request<{ spots: SpottedCar[] }>(`/api/spotter?_=${Date.now()}`),
   getWeekly: () =>
     request<{
       spots: SpottedCar[];
