@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Camera, Image as ImageIcon, ArrowLeft, Check, Zap, RotateCcw, X, Crosshair, LogIn } from "lucide-react";
+import { Image as ImageIcon, ArrowLeft, Check, Zap, RotateCcw, X, LogIn } from "lucide-react";
 import { spotter, type IdentifyResult, type SpottedCar } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { points } from "@/lib/rarity";
@@ -68,24 +68,15 @@ export function SpotTab({ active, onSaved, onClose, onLogin, onSignUp }: { activ
   const [identifying, setIdentifying] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [shouldOpenCamera, setShouldOpenCamera] = useState(false);
   const prevActive = useRef(false);
 
-  // Auto-open camera when tab becomes active (and no result/preview showing)
+  // Auto-open camera when tab becomes active (inputs always in DOM so ref is always set)
   useEffect(() => {
     if (active && !prevActive.current && !result && !preview && !identifying) {
       setTimeout(() => cameraRef.current?.click(), 150);
     }
     prevActive.current = active;
   }, [active, result, preview, identifying]);
-
-  // Fire camera after reset() re-renders the camera view and mounts the input
-  useEffect(() => {
-    if (shouldOpenCamera && cameraRef.current) {
-      setShouldOpenCamera(false);
-      cameraRef.current.click();
-    }
-  }, [shouldOpenCamera]);
 
   const handleFile = async (f: File) => {
     setPreview(URL.createObjectURL(f));
@@ -125,211 +116,215 @@ export function SpotTab({ active, onSaved, onClose, onLogin, onSignUp }: { activ
         topSpeed: result.topSpeed,
       });
       setSaved(spot);
-      onSaved(); // increment refreshKey in parent so CarsTab reloads
+      onSaved(); // tell parent to bump refreshKey
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Save failed");
     }
     setSaving(false);
   };
 
+  // Inputs are always in the DOM so cameraRef is always set — click directly, no async needed
   const reset = () => {
     setPreview(null);
     setFile(null);
     setResult(null);
     setSaved(null);
     setError(null);
-    setShouldOpenCamera(true); // fires after camera view re-renders and input is mounted
+    cameraRef.current?.click();
   };
 
-  // ── Result view ──
-  if (result) {
-    const displayName = [result.year, result.make, result.model].filter(Boolean).join(" ");
-    const pts = points(result.rarity);
-    return (
-      <div className="h-full overflow-y-auto scrollbar-hide px-5 pb-24 safe-top">
-        {/* Nav bar */}
-        <div className="flex items-center justify-between mb-4">
-          <button onClick={reset} className="text-text-primary">
-            <ArrowLeft size={24} />
-          </button>
-          <span className="text-[18px] font-semibold text-text-primary">Identification</span>
-          <div className="w-6" />
-        </div>
+  const displayName = result ? [result.year, result.make, result.model].filter(Boolean).join(" ") : "";
+  const pts = result ? points(result.rarity) : 0;
 
-        {/* Car image */}
-        {preview && (
-          <img src={preview} alt="" className="w-full h-[220px] object-cover rounded-[16px] mb-4" />
-        )}
-
-        {/* Result card */}
-        <div className="bg-bg-card rounded-[16px] p-5 mb-4">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-[22px] font-bold text-text-primary">{displayName}</h2>
-            {result.rarity && <RarityBadge rarity={result.rarity} />}
-          </div>
-          <p className="text-[14px] text-text-secondary">{result.confidence}% confidence</p>
-        </div>
-
-        {/* Specifications card */}
-        {(result.bhp || result.zeroToSixty || result.topSpeed || result.marketValue) && (
-          <div className="bg-bg-card rounded-[16px] p-5 mb-4">
-            <h3 className="text-[16px] font-semibold text-text-primary mb-3">Specifications</h3>
-            <div className="grid grid-cols-2 gap-3">
-              {result.type && <SpecCell label="Type" value={result.type} />}
-              {result.bhp && <SpecCell label="Horsepower" value={`${result.bhp} hp`} />}
-              {result.zeroToSixty && <SpecCell label="0-60 mph" value={`${result.zeroToSixty} seconds`} />}
-              {result.topSpeed && <SpecCell label="Top Speed" value={`${result.topSpeed} mph`} />}
-              {result.marketValue && <SpecCell label="Market Value" value={result.marketValue} />}
-            </div>
-          </div>
-        )}
-
-        {/* Points row */}
-        {pts > 0 && (
-          <div className="flex items-center justify-center gap-2 mb-4">
-            <Zap size={20} className="text-accent-coral" />
-            <span className="text-[16px] font-semibold text-accent-coral">+{pts} points</span>
-          </div>
-        )}
-
-        {error && <p className="text-danger-red text-sm text-center mb-4">{error}</p>}
-
-        {/* Save / Saved / Sign-in gate */}
-        {!user ? (
-          <div className="space-y-3">
-            <button
-              onClick={() => { savePendingSpot(result); onLogin(); }}
-              className="w-full h-[52px] bg-accent-coral rounded-[26px] text-white font-semibold text-[17px] flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"
-            >
-              <LogIn size={18} />
-              Sign in to Save
-            </button>
-            <button
-              onClick={() => { savePendingSpot(result); onSignUp(); }}
-              className="w-full h-[52px] border border-border-subtle rounded-[26px] text-text-primary font-semibold text-[17px] flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"
-            >
-              Create Account
-            </button>
-            <button onClick={reset} className="w-full h-[52px] border border-border-subtle rounded-[26px] text-text-secondary font-medium text-[15px]">
-              Discard
-            </button>
-            <p className="text-[12px] text-text-muted text-center">Your spotted car will be saved after you sign in</p>
-          </div>
-        ) : saved ? (
-          <div className="space-y-3">
-            <button className="w-full h-[52px] bg-accent-green rounded-[26px] text-white font-semibold text-[17px] flex items-center justify-center gap-2">
-              <Check size={18} /> Saved to Collection
-            </button>
-            <button onClick={reset} className="w-full h-[52px] border border-border-subtle rounded-[26px] text-text-secondary font-medium text-[15px]">
-              Spot Another Car
-            </button>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="w-full h-[52px] bg-accent-coral rounded-[26px] text-white font-semibold text-[17px] disabled:opacity-50 active:scale-[0.98] transition-transform"
-            >
-              {saving ? "Saving..." : "Save to Collection"}
-            </button>
-            <button onClick={reset} className="w-full h-[52px] border border-border-subtle rounded-[26px] text-text-secondary font-medium text-[15px]">
-              Discard
-            </button>
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  // ── Camera/upload view ──
   return (
-    <div className="h-full relative overflow-hidden">
-      {/* Dark atmospheric background */}
-      <div className="absolute inset-0 bg-[#08080A]" />
-      <div className="absolute inset-0 bg-gradient-to-b from-[#0B0B0E] via-[#111115]/80 to-[#0B0B0E]" />
-      <div className="absolute inset-0 opacity-[0.08]" style={{ backgroundImage: "radial-gradient(circle at 50% 40%, #E85A4F 0%, transparent 60%)" }} />
-
-      {/* Hidden file inputs */}
+    <div className="h-full relative">
+      {/* ── Hidden file inputs — always in the DOM so cameraRef is never null ── */}
       <input
         ref={cameraRef}
         type="file"
         accept="image/*"
         capture="environment"
         className="hidden"
-        onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
+        onChange={(e) => { if (e.target.files?.[0]) { handleFile(e.target.files[0]); e.target.value = ""; } }}
       />
       <input
         ref={fileRef}
         type="file"
         accept="image/*"
         className="hidden"
-        onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
+        onChange={(e) => { if (e.target.files?.[0]) { handleFile(e.target.files[0]); e.target.value = ""; } }}
       />
 
-      {identifying ? (
-        <div className="relative z-10 h-full flex flex-col items-center justify-center">
-          {preview && (
-            <img src={preview} alt="" className="w-48 h-48 rounded-[20px] object-cover mb-6" />
-          )}
-          <div className="w-8 h-8 border-2 border-accent-coral border-t-transparent rounded-full animate-spin mb-4" />
-          <p className="text-text-secondary text-[14px]">Identifying car...</p>
-        </div>
-      ) : (
-        <div className="relative z-10 h-full flex flex-col">
-          {/* Top bar with gradient */}
-          <div className="flex items-end justify-between px-5 pb-3" style={{ paddingTop: "calc(12px + env(safe-area-inset-top, 0px))" }}>
-            <h2 className="text-[18px] font-semibold text-text-primary">Spot a Car</h2>
-            <button onClick={onClose} className="p-1"><X size={24} className="text-text-primary" /></button>
-          </div>
-
-          {/* Center viewfinder */}
-          <div className="flex-1 flex items-center justify-center">
-            <div className="relative w-[280px] h-[280px]">
-              <svg className="absolute inset-0" width="280" height="280" viewBox="0 0 280 280" fill="none">
-                <path d="M4 40V4H40" stroke="rgba(255,255,255,0.7)" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
-                <path d="M240 4H276V40" stroke="rgba(255,255,255,0.7)" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
-                <path d="M4 240V276H40" stroke="rgba(255,255,255,0.7)" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
-                <path d="M240 276H276V240" stroke="rgba(255,255,255,0.7)" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </div>
-          </div>
-
-          {/* Bottom controls with gradient */}
-          <div className="px-5 pb-8 pt-6 bg-gradient-to-t from-[#0B0B0E] via-[#0B0B0E]/80 to-transparent">
-            <div className="flex items-center justify-center gap-12 mb-4">
-              {/* Gallery button */}
-              <button
-                onClick={() => fileRef.current?.click()}
-                className="w-12 h-12 rounded-[8px] bg-[#1E1E24] border border-[#27272A] flex items-center justify-center active:scale-95 transition-transform"
-              >
-                <ImageIcon size={20} className="text-text-primary" />
+      {/* ── Result view ── */}
+      <div className={result ? "h-full overflow-y-auto scrollbar-hide px-5 pb-24 safe-top" : "hidden"}>
+        {result && (
+          <>
+            {/* Nav bar */}
+            <div className="flex items-center justify-between mb-4">
+              <button onClick={reset} className="text-text-primary">
+                <ArrowLeft size={24} />
               </button>
+              <span className="text-[18px] font-semibold text-text-primary">Identification</span>
+              <div className="w-6" />
+            </div>
 
-              {/* Capture button */}
-              <button
-                onClick={() => cameraRef.current?.click()}
-                className="relative active:scale-95 transition-transform"
-              >
-                <div className="w-[72px] h-[72px] rounded-full border-[4px] border-white flex items-center justify-center">
-                  <div className="w-[58px] h-[58px] rounded-full bg-white" />
+            {/* Car image */}
+            {preview && (
+              <img src={preview} alt="" className="w-full h-[220px] object-cover rounded-[16px] mb-4" />
+            )}
+
+            {/* Result card */}
+            <div className="bg-bg-card rounded-[16px] p-5 mb-4">
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-[22px] font-bold text-text-primary">{displayName}</h2>
+                {result.rarity && <RarityBadge rarity={result.rarity} />}
+              </div>
+              <p className="text-[14px] text-text-secondary">{result.confidence}% confidence</p>
+            </div>
+
+            {/* Specifications card */}
+            {(result.bhp || result.zeroToSixty || result.topSpeed || result.marketValue) && (
+              <div className="bg-bg-card rounded-[16px] p-5 mb-4">
+                <h3 className="text-[16px] font-semibold text-text-primary mb-3">Specifications</h3>
+                <div className="grid grid-cols-2 gap-3">
+                  {result.type && <SpecCell label="Type" value={result.type} />}
+                  {result.bhp && <SpecCell label="Horsepower" value={`${result.bhp} hp`} />}
+                  {result.zeroToSixty && <SpecCell label="0-60 mph" value={`${result.zeroToSixty} seconds`} />}
+                  {result.topSpeed && <SpecCell label="Top Speed" value={`${result.topSpeed} mph`} />}
+                  {result.marketValue && <SpecCell label="Market Value" value={result.marketValue} />}
                 </div>
-              </button>
+              </div>
+            )}
 
-              {/* Flip/rotate */}
-              <button className="w-12 h-12 rounded-full bg-[#1E1E24] border border-[#27272A] flex items-center justify-center">
-                <RotateCcw size={20} className="text-text-primary" />
-              </button>
+            {/* Points row */}
+            {pts > 0 && (
+              <div className="flex items-center justify-center gap-2 mb-4">
+                <Zap size={20} className="text-accent-coral" />
+                <span className="text-[16px] font-semibold text-accent-coral">+{pts} points</span>
+              </div>
+            )}
+
+            {error && <p className="text-danger-red text-sm text-center mb-4">{error}</p>}
+
+            {/* Save / Saved / Sign-in gate */}
+            {!user ? (
+              <div className="space-y-3">
+                <button
+                  onClick={() => { savePendingSpot(result); onLogin(); }}
+                  className="w-full h-[52px] bg-accent-coral rounded-[26px] text-white font-semibold text-[17px] flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"
+                >
+                  <LogIn size={18} />
+                  Sign in to Save
+                </button>
+                <button
+                  onClick={() => { savePendingSpot(result); onSignUp(); }}
+                  className="w-full h-[52px] border border-border-subtle rounded-[26px] text-text-primary font-semibold text-[17px] flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"
+                >
+                  Create Account
+                </button>
+                <button onClick={reset} className="w-full h-[52px] border border-border-subtle rounded-[26px] text-text-secondary font-medium text-[15px]">
+                  Discard
+                </button>
+                <p className="text-[12px] text-text-muted text-center">Your spotted car will be saved after you sign in</p>
+              </div>
+            ) : saved ? (
+              <div className="space-y-3">
+                <button className="w-full h-[52px] bg-accent-green rounded-[26px] text-white font-semibold text-[17px] flex items-center justify-center gap-2">
+                  <Check size={18} /> Saved to Collection
+                </button>
+                <button onClick={reset} className="w-full h-[52px] border border-border-subtle rounded-[26px] text-text-secondary font-medium text-[15px]">
+                  Spot Another Car
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <button
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="w-full h-[52px] bg-accent-coral rounded-[26px] text-white font-semibold text-[17px] disabled:opacity-50 active:scale-[0.98] transition-transform"
+                >
+                  {saving ? "Saving..." : "Save to Collection"}
+                </button>
+                <button onClick={reset} className="w-full h-[52px] border border-border-subtle rounded-[26px] text-text-secondary font-medium text-[15px]">
+                  Discard
+                </button>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
+      {/* ── Camera / upload view ── */}
+      <div className={result ? "hidden" : "h-full relative overflow-hidden"}>
+        {/* Dark atmospheric background */}
+        <div className="absolute inset-0 bg-[#08080A]" />
+        <div className="absolute inset-0 bg-gradient-to-b from-[#0B0B0E] via-[#111115]/80 to-[#0B0B0E]" />
+        <div className="absolute inset-0 opacity-[0.08]" style={{ backgroundImage: "radial-gradient(circle at 50% 40%, #E85A4F 0%, transparent 60%)" }} />
+
+        {identifying ? (
+          <div className="relative z-10 h-full flex flex-col items-center justify-center">
+            {preview && (
+              <img src={preview} alt="" className="w-48 h-48 rounded-[20px] object-cover mb-6" />
+            )}
+            <div className="w-8 h-8 border-2 border-accent-coral border-t-transparent rounded-full animate-spin mb-4" />
+            <p className="text-text-secondary text-[14px]">Identifying car...</p>
+          </div>
+        ) : (
+          <div className="relative z-10 h-full flex flex-col">
+            {/* Top bar */}
+            <div className="flex items-end justify-between px-5 pb-3" style={{ paddingTop: "calc(12px + env(safe-area-inset-top, 0px))" }}>
+              <h2 className="text-[18px] font-semibold text-text-primary">Spot a Car</h2>
+              <button onClick={onClose} className="p-1"><X size={24} className="text-text-primary" /></button>
             </div>
 
-            {error && <p className="text-danger-red text-sm text-center mb-2">{error}</p>}
+            {/* Center viewfinder */}
+            <div className="flex-1 flex items-center justify-center">
+              <div className="relative w-[280px] h-[280px]">
+                <svg className="absolute inset-0" width="280" height="280" viewBox="0 0 280 280" fill="none">
+                  <path d="M4 40V4H40" stroke="rgba(255,255,255,0.7)" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M240 4H276V40" stroke="rgba(255,255,255,0.7)" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M4 240V276H40" stroke="rgba(255,255,255,0.7)" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M240 276H276V240" stroke="rgba(255,255,255,0.7)" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </div>
+            </div>
 
-            <p className="text-[13px] text-text-secondary text-center">
-              Point at a car and tap to identify
-            </p>
+            {/* Bottom controls */}
+            <div className="px-5 pb-8 pt-6 bg-gradient-to-t from-[#0B0B0E] via-[#0B0B0E]/80 to-transparent">
+              <div className="flex items-center justify-center gap-12 mb-4">
+                {/* Gallery button */}
+                <button
+                  onClick={() => fileRef.current?.click()}
+                  className="w-12 h-12 rounded-[8px] bg-[#1E1E24] border border-[#27272A] flex items-center justify-center active:scale-95 transition-transform"
+                >
+                  <ImageIcon size={20} className="text-text-primary" />
+                </button>
+
+                {/* Capture button */}
+                <button
+                  onClick={() => cameraRef.current?.click()}
+                  className="relative active:scale-95 transition-transform"
+                >
+                  <div className="w-[72px] h-[72px] rounded-full border-[4px] border-white flex items-center justify-center">
+                    <div className="w-[58px] h-[58px] rounded-full bg-white" />
+                  </div>
+                </button>
+
+                {/* Flip/rotate placeholder */}
+                <button className="w-12 h-12 rounded-full bg-[#1E1E24] border border-[#27272A] flex items-center justify-center">
+                  <RotateCcw size={20} className="text-text-primary" />
+                </button>
+              </div>
+
+              {error && <p className="text-danger-red text-sm text-center mb-2">{error}</p>}
+
+              <p className="text-[13px] text-text-secondary text-center">
+                Point at a car and tap to identify
+              </p>
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

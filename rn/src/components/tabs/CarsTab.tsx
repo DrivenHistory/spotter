@@ -7,14 +7,15 @@ import { spotter, type SpottedCar } from "@/lib/api";
 import { points } from "@/lib/rarity";
 import { CarDetailView } from "@/components/CarDetailView";
 
-export function CarsTab({ onLogin, refreshKey = 0 }: { onLogin: () => void; refreshKey?: number }) {
+export function CarsTab({ onLogin, refreshKey = 0, active = false }: { onLogin: () => void; refreshKey?: number; active?: boolean }) {
   const { user } = useAuth();
   const [cars, setCars] = useState<SpottedCar[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCar, setSelectedCar] = useState<SpottedCar | null>(null);
 
+  // Re-fetch whenever refreshKey changes OR the tab becomes active (catches API race conditions)
   useEffect(() => {
-    if (!user) return;
+    if (!user || !active) return;
     setLoading(true);
     (async () => {
       try {
@@ -23,7 +24,7 @@ export function CarsTab({ onLogin, refreshKey = 0 }: { onLogin: () => void; refr
       } catch { /* ignore */ }
       setLoading(false);
     })();
-  }, [user, refreshKey]);
+  }, [user, refreshKey, active]);
 
   const totalPts = cars.reduce((s, c) => s + points(c.rarity), 0);
   const rareCount = cars.filter((c) =>
