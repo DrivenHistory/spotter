@@ -68,16 +68,24 @@ export function SpotTab({ active, onSaved, onClose, onLogin, onSignUp }: { activ
   const [identifying, setIdentifying] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [shouldOpenCamera, setShouldOpenCamera] = useState(false);
   const prevActive = useRef(false);
 
   // Auto-open camera when tab becomes active (and no result/preview showing)
   useEffect(() => {
     if (active && !prevActive.current && !result && !preview && !identifying) {
-      // Small delay so the DOM is visible before triggering native picker
       setTimeout(() => cameraRef.current?.click(), 150);
     }
     prevActive.current = active;
   }, [active, result, preview, identifying]);
+
+  // Fire camera after reset() re-renders the camera view and mounts the input
+  useEffect(() => {
+    if (shouldOpenCamera && cameraRef.current) {
+      setShouldOpenCamera(false);
+      cameraRef.current.click();
+    }
+  }, [shouldOpenCamera]);
 
   const handleFile = async (f: File) => {
     setPreview(URL.createObjectURL(f));
@@ -117,6 +125,7 @@ export function SpotTab({ active, onSaved, onClose, onLogin, onSignUp }: { activ
         topSpeed: result.topSpeed,
       });
       setSaved(spot);
+      onSaved(); // increment refreshKey in parent so CarsTab reloads
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Save failed");
     }
@@ -129,8 +138,7 @@ export function SpotTab({ active, onSaved, onClose, onLogin, onSignUp }: { activ
     setResult(null);
     setSaved(null);
     setError(null);
-    // Re-open camera after state clears and camera view re-renders
-    setTimeout(() => cameraRef.current?.click(), 150);
+    setShouldOpenCamera(true); // fires after camera view re-renders and input is mounted
   };
 
   // ── Result view ──

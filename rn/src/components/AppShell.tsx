@@ -77,7 +77,7 @@ export function AppShell({ onLogin, onSignUp }: { onLogin: () => void; onSignUp:
           <>
             <div className={tab === 0 ? "h-full" : "hidden"}><HomeTab onProfile={() => setShowProfile(true)} /></div>
             <div className={tab === 1 ? "h-full" : "hidden"}><CarsTab onLogin={onLogin} refreshKey={refreshKey} /></div>
-            <div className={tab === 2 ? "h-full" : "hidden"}><SpotTab active={tab === 2} onSaved={() => { setRefreshKey((k) => k + 1); setTab(1); }} onClose={() => setTab(0)} onLogin={onLogin} onSignUp={onSignUp} /></div>
+            <div className={tab === 2 ? "h-full" : "hidden"}><SpotTab active={tab === 2} onSaved={() => setRefreshKey((k) => k + 1)} onClose={() => setTab(0)} onLogin={onLogin} onSignUp={onSignUp} /></div>
             <div className={tab === 3 ? "h-full" : "hidden"}><CommunityTab onProfile={() => setShowProfile(true)} /></div>
             <div className={tab === 4 ? "h-full" : "hidden"}><LeaderboardTab refreshKey={refreshKey} /></div>
           </>
