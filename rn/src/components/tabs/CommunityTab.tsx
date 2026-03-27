@@ -66,6 +66,11 @@ export function CommunityTab({ onProfile }: { onProfile?: () => void }) {
         onBack={() => setSelectedCar(null)}
         onNext={idx < allNavigable.length - 1 ? () => setSelectedCar(allNavigable[idx + 1]) : undefined}
         onPrev={idx > 0 ? () => setSelectedCar(allNavigable[idx - 1]) : undefined}
+        canDelete={!!user && selectedCar.spotterEmail.toLowerCase() === user.email.toLowerCase()}
+        onDelete={(id) => {
+          setAllSpots((prev) => prev.filter((c) => c.id !== id));
+          setSelectedCar(null);
+        }}
       />
     );
   }
