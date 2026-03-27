@@ -1,10 +1,13 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
-import { ArrowRight, Crown } from "lucide-react";
+import { ArrowRight, Crown, UserPlus, ChevronRight, X, Plus } from "lucide-react";
 import { spotter, groups as groupsApi, type SpottedCar, type GroupLeaderboardEntry, type GroupMemberEntry } from "@/lib/api";
-import { points, RARITY_POINTS } from "@/lib/rarity";
+import { points, RARITY_POINTS, rarityKey } from "@/lib/rarity";
 import { useGroups } from "@/lib/groups-context";
+import { useAuth } from "@/lib/auth-context";
+import { InviteSheet } from "@/components/groups/InviteSheet";
+import { CreateGroupSheet } from "@/components/groups/CreateGroupSheet";
 
 interface LeaderboardEntry {
   email: string;
@@ -24,14 +27,21 @@ const RANK_COLORS: Record<number, { bg: string; text: string; border: string }> 
   3: { bg: "#CD7F3230", text: "#CD7F32", border: "#CD7F3240" },
 };
 
-export function LeaderboardTab() {
+export function LeaderboardTab({ refreshKey = 0 }: { refreshKey?: number } = {}) {
   const { myGroups } = useGroups();
+  const { user } = useAuth();
   const [allSpots, setAllSpots] = useState<SpottedCar[]>([]);
   const [selectedTab, setSelectedTab] = useState(0);
   const [loading, setLoading] = useState(true);
   const [showScoring, setShowScoring] = useState(false);
   const [groupRankings, setGroupRankings] = useState<GroupLeaderboardEntry[]>([]);
   const [groupMembers, setGroupMembers] = useState<Record<string, GroupMemberEntry[]>>({});
+  const [inviteGroup, setInviteGroup] = useState<typeof myGroups[number]["group"] | null>(null);
+  const [selectedMember, setSelectedMember] = useState<{ member: GroupMemberEntry; groupId: string } | null>(null);
+  const [memberSpots, setMemberSpots] = useState<SpottedCar[]>([]);
+  const [loadingMemberSpots, setLoadingMemberSpots] = useState(false);
+  const [showCreateGroup, setShowCreateGroup] = useState(false);
+  const [newGroupInvite, setNewGroupInvite] = useState<typeof myGroups[number]["group"] | null>(null);
 
   // Dynamic tabs: All Time | Groups | <per-group tabs>
   const tabs = useMemo(() => {
@@ -39,6 +49,13 @@ export function LeaderboardTab() {
     for (const m of myGroups) base.push(m.group.name);
     return base;
   }, [myGroups]);
+
+  // Reset tab if the selected group was removed
+  useEffect(() => {
+    if (selectedTab >= tabs.length) {
+      setSelectedTab(0);
+    }
+  }, [tabs, selectedTab]);
 
   useEffect(() => {
     (async () => {
@@ -48,7 +65,7 @@ export function LeaderboardTab() {
       } catch { /* ignore */ }
       setLoading(false);
     })();
-  }, []);
+  }, [refreshKey]);
 
   // Fetch group leaderboard when Groups tab selected
   useEffect(() => {
@@ -128,6 +145,19 @@ export function LeaderboardTab() {
           </button>
         ))}
       </div>
+
+      {/* Add group button — only on Groups tab, right-aligned below tabs */}
+      {selectedTab === 1 && (
+        <div className="flex justify-end mb-3">
+          <button
+            onClick={() => setShowCreateGroup(true)}
+            className="w-8 h-8 flex items-center justify-center rounded-full bg-accent-coral/15 text-accent-coral active:opacity-70 transition-opacity"
+            aria-label="Create group"
+          >
+            <Plus size={18} strokeWidth={2.5} />
+          </button>
+        </div>
+      )}
 
       {loading ? (
         <div className="flex justify-center py-12">
@@ -213,6 +243,7 @@ export function LeaderboardTab() {
           const groupIndex = selectedTab - 2;
           const membership = myGroups[groupIndex];
           if (!membership) return <EmptyState />;
+          const isCreator = membership.role === "creator";
           const members = groupMembers[membership.group.id];
           if (!members) {
             return (
@@ -223,8 +254,49 @@ export function LeaderboardTab() {
           }
           if (members.length === 0) return <EmptyState message="No members yet" />;
           const podiumMembers = members.slice(0, Math.min(members.length, 3));
+
+          const handleMemberClick = async (m: GroupMemberEntry) => {
+            setSelectedMember({ member: m, groupId: membership.group.id });
+            setMemberSpots([]);
+            setLoadingMemberSpots(true);
+            try {
+              const { spots } = await spotter.getFeed();
+              const group = membership.group;
+              const groupStart = new Date(group.createdAt).getTime();
+              const filtered = spots.filter((s) => {
+                // Must be this member's spot
+                if (s.spotterEmail.toLowerCase() !== m.email.toLowerCase()) return false;
+                // Must be after group creation
+                if (new Date(s.createdAt).getTime() < groupStart) return false;
+                // Apply vehicle filter if group is specific make/model
+                if (group.vehicleFilterType === "specific") {
+                  if (group.vehicleMake && s.make.toLowerCase() !== group.vehicleMake.toLowerCase()) return false;
+                  if (group.vehicleModel && s.model.toLowerCase() !== group.vehicleModel.toLowerCase()) return false;
+                }
+                return true;
+              });
+              filtered.sort((a, b) => points(b.rarity) - points(a.rarity));
+              setMemberSpots(filtered);
+            } catch {
+              setMemberSpots([]);
+            } finally {
+              setLoadingMemberSpots(false);
+            }
+          };
+
           return (
             <>
+              {/* Invite button for group creators */}
+              {isCreator && (
+                <button
+                  onClick={() => setInviteGroup(membership.group)}
+                  className="w-full flex items-center justify-center gap-2 py-3 mb-4 bg-accent-coral rounded-[12px]"
+                >
+                  <UserPlus size={18} className="text-white" />
+                  <span className="text-[14px] font-semibold text-white">Invite Members</span>
+                </button>
+              )}
+
               {podiumMembers.length >= 2 && (
                 <div className="flex items-end justify-center gap-3 mb-4">
                   <PodiumSlotGeneric name={podiumMembers[1].name} label={initials(podiumMembers[1].name)} points={podiumMembers[1].totalPoints} rank={2} barHeight={60} color="#C0C0C0" avatarSize={48} strokeWidth={2} />
@@ -240,7 +312,7 @@ export function LeaderboardTab() {
                 {members.map((m) => {
                   const rank = m.rank;
                   return (
-                    <div key={m.email} className="flex items-center gap-3 px-4 py-3 bg-bg-card rounded-[12px]">
+                    <button key={m.email} onClick={() => handleMemberClick(m)} className="flex items-center gap-3 px-4 py-3 bg-bg-card rounded-[12px] w-full text-left">
                       <span className={`text-[16px] font-bold w-5 text-center ${rank <= 3 ? "text-accent-coral" : "text-text-muted"}`}>{rank}</span>
                       <div className="w-9 h-9 rounded-full bg-bg-elevated flex items-center justify-center shrink-0">
                         <span className="text-[12px] font-semibold text-text-primary">{initials(m.name)}</span>
@@ -249,8 +321,9 @@ export function LeaderboardTab() {
                         <p className="text-[14px] font-semibold text-text-primary truncate">{m.name}</p>
                         <p className="text-[11px] text-text-muted">{m.totalSpots} cars spotted</p>
                       </div>
-                      <span className="text-[16px] font-bold text-accent-coral">{m.totalPoints}</span>
-                    </div>
+                      <span className="text-[16px] font-bold text-accent-coral mr-1">{m.totalPoints}</span>
+                      <ChevronRight size={16} className="text-text-muted shrink-0" />
+                    </button>
                   );
                 })}
               </div>
@@ -271,6 +344,86 @@ export function LeaderboardTab() {
         </div>
         <ArrowRight size={20} className="text-accent-coral shrink-0" />
       </button>
+
+      {/* Create group sheet */}
+      <CreateGroupSheet
+        open={showCreateGroup}
+        onClose={() => setShowCreateGroup(false)}
+        onCreated={(group) => {
+          setShowCreateGroup(false);
+          setNewGroupInvite(group);
+        }}
+      />
+
+      {/* Invite sheet for group creators */}
+      {inviteGroup && (
+        <InviteSheet open={!!inviteGroup} onClose={() => setInviteGroup(null)} group={inviteGroup} />
+      )}
+
+      {/* Invite sheet after creating a new group */}
+      {newGroupInvite && (
+        <InviteSheet open={!!newGroupInvite} onClose={() => setNewGroupInvite(null)} group={newGroupInvite} />
+      )}
+
+      {/* Member spots detail sheet */}
+      {selectedMember && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60" onClick={() => setSelectedMember(null)}>
+          <div className="w-full max-w-md bg-bg-page rounded-t-[24px] p-6 safe-bottom max-h-[80vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="w-10 h-1 bg-border-strong rounded-full mx-auto mb-4" />
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-bg-elevated flex items-center justify-center">
+                  <span className="text-[13px] font-semibold text-text-primary">{initials(selectedMember.member.name)}</span>
+                </div>
+                <div>
+                  <h3 className="text-[18px] font-bold text-text-primary">{selectedMember.member.name}</h3>
+                  <p className="text-[12px] text-text-muted">{selectedMember.member.totalPoints} pts · {selectedMember.member.totalSpots} cars</p>
+                </div>
+              </div>
+              <button onClick={() => setSelectedMember(null)} className="w-8 h-8 rounded-full bg-bg-elevated flex items-center justify-center">
+                <X size={18} className="text-text-muted" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              {loadingMemberSpots ? (
+                <div className="flex justify-center py-8">
+                  <div className="w-6 h-6 border-2 border-accent-coral border-t-transparent rounded-full animate-spin" />
+                </div>
+              ) : memberSpots.length === 0 ? (
+                <p className="text-center text-[14px] text-text-muted py-8">No cars spotted yet</p>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {memberSpots.map((car) => {
+                    const pts = points(car.rarity);
+                    return (
+                      <div key={car.id} className="flex items-center gap-3 px-3 py-2.5 bg-bg-card rounded-[10px]">
+                        {car.imageUrl ? (
+                          <img src={car.imageUrl} alt="" className="w-11 h-11 rounded-[8px] object-cover shrink-0" />
+                        ) : (
+                          <div className="w-11 h-11 rounded-[8px] bg-bg-elevated flex items-center justify-center shrink-0">
+                            <span className="text-[18px]">🚗</span>
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[13px] font-semibold text-text-primary truncate">
+                            {car.year ? `${car.year} ` : ""}{car.make} {car.model}
+                          </p>
+                          {car.rarity && (
+                            <span className={`text-[11px] font-medium text-rarity-${rarityKey(car.rarity)}`}>
+                              {car.rarity}
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-[15px] font-bold text-accent-coral">{pts} pt{pts === 1 ? "" : "s"}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Scoring sheet */}
       {showScoring && (

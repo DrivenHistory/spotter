@@ -25,6 +25,7 @@ export function AppShell({ onLogin, onSignUp }: { onLogin: () => void; onSignUp:
   const { joinByCode, refreshGroups } = useGroups();
   const [tab, setTab] = useState(0);
   const [showProfile, setShowProfile] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
   const pendingSaveAttempted = useRef(false);
   const pendingInviteAttempted = useRef(false);
 
@@ -61,7 +62,8 @@ export function AppShell({ onLogin, onSignUp }: { onLogin: () => void; onSignUp:
       zeroToSixty: pending.zeroToSixty,
       topSpeed: pending.topSpeed,
     }).then(() => {
-      setTab(1); // Navigate to Cars tab to show the saved car
+      setRefreshKey((k) => k + 1);
+      setTab(1);
     }).catch(() => {});
   }, [user]);
 
@@ -74,10 +76,10 @@ export function AppShell({ onLogin, onSignUp }: { onLogin: () => void; onSignUp:
         ) : (
           <>
             <div className={tab === 0 ? "h-full" : "hidden"}><HomeTab onProfile={() => setShowProfile(true)} /></div>
-            <div className={tab === 1 ? "h-full" : "hidden"}><CarsTab onLogin={onLogin} /></div>
-            <div className={tab === 2 ? "h-full" : "hidden"}><SpotTab active={tab === 2} onSaved={() => setTab(1)} onClose={() => setTab(0)} onLogin={onLogin} onSignUp={onSignUp} /></div>
+            <div className={tab === 1 ? "h-full" : "hidden"}><CarsTab onLogin={onLogin} refreshKey={refreshKey} /></div>
+            <div className={tab === 2 ? "h-full" : "hidden"}><SpotTab active={tab === 2} onSaved={() => { setRefreshKey((k) => k + 1); setTab(1); }} onClose={() => setTab(0)} onLogin={onLogin} onSignUp={onSignUp} /></div>
             <div className={tab === 3 ? "h-full" : "hidden"}><CommunityTab onProfile={() => setShowProfile(true)} /></div>
-            <div className={tab === 4 ? "h-full" : "hidden"}><LeaderboardTab /></div>
+            <div className={tab === 4 ? "h-full" : "hidden"}><LeaderboardTab refreshKey={refreshKey} /></div>
           </>
         )}
       </div>

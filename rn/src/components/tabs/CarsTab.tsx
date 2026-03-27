@@ -7,7 +7,7 @@ import { spotter, type SpottedCar } from "@/lib/api";
 import { points } from "@/lib/rarity";
 import { CarDetailView } from "@/components/CarDetailView";
 
-export function CarsTab({ onLogin }: { onLogin: () => void }) {
+export function CarsTab({ onLogin, refreshKey = 0 }: { onLogin: () => void; refreshKey?: number }) {
   const { user } = useAuth();
   const [cars, setCars] = useState<SpottedCar[]>([]);
   const [loading, setLoading] = useState(true);
@@ -15,6 +15,7 @@ export function CarsTab({ onLogin }: { onLogin: () => void }) {
 
   useEffect(() => {
     if (!user) return;
+    setLoading(true);
     (async () => {
       try {
         const { spots } = await spotter.getFeed();
@@ -22,7 +23,7 @@ export function CarsTab({ onLogin }: { onLogin: () => void }) {
       } catch { /* ignore */ }
       setLoading(false);
     })();
-  }, [user]);
+  }, [user, refreshKey]);
 
   const totalPts = cars.reduce((s, c) => s + points(c.rarity), 0);
   const rareCount = cars.filter((c) =>

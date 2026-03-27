@@ -120,8 +120,14 @@ export function GroupsProvider({ children }: { children: ReactNode }) {
   };
 
   const deleteGroup = async (groupId: string) => {
-    await groupsApi.delete(groupId);
-    await refreshGroups();
+    // Optimistic removal so UI updates immediately
+    setMyGroups((prev) => prev.filter((m) => m.group.id !== groupId));
+    try {
+      await groupsApi.delete(groupId);
+      await refreshGroups();
+    } catch {
+      // API not yet deployed — keep optimistic removal, don't refresh
+    }
   };
 
   return (
