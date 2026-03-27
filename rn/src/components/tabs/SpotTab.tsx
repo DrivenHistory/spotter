@@ -57,12 +57,13 @@ export function clearPendingSpot() {
   try { localStorage.removeItem(PENDING_SPOT_KEY); } catch {}
 }
 
+const CAMERA_INPUT_ID = "spot-camera-input";
+const GALLERY_INPUT_ID = "spot-gallery-input";
+
 export function SpotTab({ active, onSaved, onClose, onLogin, onSignUp }: { active: boolean; onSaved: () => void; onClose: () => void; onLogin: () => void; onSignUp: () => void }) {
   const { user } = useAuth();
-  const fileRef = useRef<HTMLInputElement>(null);
   const cameraRef = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState<string | null>(null);
-  const [file, setFile] = useState<File | null>(null);
   const [result, setResult] = useState<IdentifyResult | null>(null);
   const [saved, setSaved] = useState<SpottedCar | null>(null);
   const [identifying, setIdentifying] = useState(false);
@@ -70,7 +71,7 @@ export function SpotTab({ active, onSaved, onClose, onLogin, onSignUp }: { activ
   const [error, setError] = useState<string | null>(null);
   const prevActive = useRef(false);
 
-  // Auto-open camera when tab becomes active (inputs always in DOM so ref is always set)
+  // Auto-open camera when tab first becomes active
   useEffect(() => {
     if (active && !prevActive.current && !result && !preview && !identifying) {
       setTimeout(() => cameraRef.current?.click(), 150);
@@ -79,6 +80,7 @@ export function SpotTab({ active, onSaved, onClose, onLogin, onSignUp }: { activ
   }, [active, result, preview, identifying]);
 
   const handleFile = async (f: File) => {
+    // Clear previous result so camera view shows while identifying
     setPreview(URL.createObjectURL(f));
     setResult(null);
     setSaved(null);
@@ -86,7 +88,6 @@ export function SpotTab({ active, onSaved, onClose, onLogin, onSignUp }: { activ
     setIdentifying(true);
     try {
       const compressed = await compressImage(f);
-      setFile(compressed);
       const res = await spotter.identify(compressed);
       setResult(res);
     } catch (e: unknown) {
@@ -101,7 +102,7 @@ export function SpotTab({ active, onSaved, onClose, onLogin, onSignUp }: { activ
     if (!result) return;
     setSaving(true);
     try {
-      const spot = await spotter.save({
+      await spotter.save({
         make: result.make,
         model: result.model,
         year: result.year,
@@ -115,22 +116,20 @@ export function SpotTab({ active, onSaved, onClose, onLogin, onSignUp }: { activ
         zeroToSixty: result.zeroToSixty,
         topSpeed: result.topSpeed,
       });
-      setSaved(spot);
-      onSaved(); // tell parent to bump refreshKey
+      setSaved({} as SpottedCar);
+      onSaved(); // bump refreshKey in parent so CarsTab reloads
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Save failed");
     }
     setSaving(false);
   };
 
-  // Inputs are always in the DOM so cameraRef is always set — click directly, no async needed
-  const reset = () => {
+  // Clear state only — camera is opened via <label> so iOS triggers it natively
+  const clearState = () => {
     setPreview(null);
-    setFile(null);
     setResult(null);
     setSaved(null);
     setError(null);
-    cameraRef.current?.click();
   };
 
   const displayName = result ? [result.year, result.make, result.model].filter(Boolean).join(" ") : "";
@@ -138,32 +137,37 @@ export function SpotTab({ active, onSaved, onClose, onLogin, onSignUp }: { activ
 
   return (
     <div className="h-full relative">
-      {/* ── Hidden file inputs — always in the DOM so cameraRef is never null ── */}
+      {/* ── File inputs — always in DOM, triggered via <label> for iOS reliability ── */}
       <input
+        id={CAMERA_INPUT_ID}
         ref={cameraRef}
         type="file"
         accept="image/*"
         capture="environment"
         className="hidden"
-        onChange={(e) => { if (e.target.files?.[0]) { handleFile(e.target.files[0]); e.target.value = ""; } }}
+        onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) handleFile(f); }}
       />
       <input
-        ref={fileRef}
+        id={GALLERY_INPUT_ID}
         type="file"
         accept="image/*"
         className="hidden"
-        onChange={(e) => { if (e.target.files?.[0]) { handleFile(e.target.files[0]); e.target.value = ""; } }}
+        onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) handleFile(f); }}
       />
 
       {/* ── Result view ── */}
       <div className={result ? "h-full overflow-y-auto scrollbar-hide px-5 pb-24 safe-top" : "hidden"}>
         {result && (
           <>
-            {/* Nav bar */}
+            {/* Nav bar — label triggers camera natively on iOS */}
             <div className="flex items-center justify-between mb-4">
-              <button onClick={reset} className="text-text-primary">
+              <label
+                htmlFor={CAMERA_INPUT_ID}
+                onClick={clearState}
+                className="text-text-primary cursor-pointer p-1"
+              >
                 <ArrowLeft size={24} />
-              </button>
+              </label>
               <span className="text-[18px] font-semibold text-text-primary">Identification</span>
               <div className="w-6" />
             </div>
@@ -206,7 +210,7 @@ export function SpotTab({ active, onSaved, onClose, onLogin, onSignUp }: { activ
 
             {error && <p className="text-danger-red text-sm text-center mb-4">{error}</p>}
 
-            {/* Save / Saved / Sign-in gate */}
+            {/* Action buttons */}
             {!user ? (
               <div className="space-y-3">
                 <button
@@ -222,9 +226,14 @@ export function SpotTab({ active, onSaved, onClose, onLogin, onSignUp }: { activ
                 >
                   Create Account
                 </button>
-                <button onClick={reset} className="w-full h-[52px] border border-border-subtle rounded-[26px] text-text-secondary font-medium text-[15px]">
+                {/* Discard — label opens camera natively */}
+                <label
+                  htmlFor={CAMERA_INPUT_ID}
+                  onClick={clearState}
+                  className="w-full h-[52px] border border-border-subtle rounded-[26px] text-text-secondary font-medium text-[15px] flex items-center justify-center cursor-pointer"
+                >
                   Discard
-                </button>
+                </label>
                 <p className="text-[12px] text-text-muted text-center">Your spotted car will be saved after you sign in</p>
               </div>
             ) : saved ? (
@@ -232,9 +241,14 @@ export function SpotTab({ active, onSaved, onClose, onLogin, onSignUp }: { activ
                 <button className="w-full h-[52px] bg-accent-green rounded-[26px] text-white font-semibold text-[17px] flex items-center justify-center gap-2">
                   <Check size={18} /> Saved to Collection
                 </button>
-                <button onClick={reset} className="w-full h-[52px] border border-border-subtle rounded-[26px] text-text-secondary font-medium text-[15px]">
+                {/* Spot Another — label opens camera natively */}
+                <label
+                  htmlFor={CAMERA_INPUT_ID}
+                  onClick={clearState}
+                  className="w-full h-[52px] border border-border-subtle rounded-[26px] text-text-secondary font-medium text-[15px] flex items-center justify-center cursor-pointer"
+                >
                   Spot Another Car
-                </button>
+                </label>
               </div>
             ) : (
               <div className="space-y-3">
@@ -245,9 +259,14 @@ export function SpotTab({ active, onSaved, onClose, onLogin, onSignUp }: { activ
                 >
                   {saving ? "Saving..." : "Save to Collection"}
                 </button>
-                <button onClick={reset} className="w-full h-[52px] border border-border-subtle rounded-[26px] text-text-secondary font-medium text-[15px]">
+                {/* Discard — label opens camera natively */}
+                <label
+                  htmlFor={CAMERA_INPUT_ID}
+                  onClick={clearState}
+                  className="w-full h-[52px] border border-border-subtle rounded-[26px] text-text-secondary font-medium text-[15px] flex items-center justify-center cursor-pointer"
+                >
                   Discard
-                </button>
+                </label>
               </div>
             )}
           </>
@@ -292,25 +311,25 @@ export function SpotTab({ active, onSaved, onClose, onLogin, onSignUp }: { activ
             {/* Bottom controls */}
             <div className="px-5 pb-8 pt-6 bg-gradient-to-t from-[#0B0B0E] via-[#0B0B0E]/80 to-transparent">
               <div className="flex items-center justify-center gap-12 mb-4">
-                {/* Gallery button */}
-                <button
-                  onClick={() => fileRef.current?.click()}
-                  className="w-12 h-12 rounded-[8px] bg-[#1E1E24] border border-[#27272A] flex items-center justify-center active:scale-95 transition-transform"
+                {/* Gallery — label triggers natively */}
+                <label
+                  htmlFor={GALLERY_INPUT_ID}
+                  className="w-12 h-12 rounded-[8px] bg-[#1E1E24] border border-[#27272A] flex items-center justify-center active:scale-95 transition-transform cursor-pointer"
                 >
                   <ImageIcon size={20} className="text-text-primary" />
-                </button>
+                </label>
 
-                {/* Capture button */}
-                <button
-                  onClick={() => cameraRef.current?.click()}
-                  className="relative active:scale-95 transition-transform"
+                {/* Capture — label triggers natively */}
+                <label
+                  htmlFor={CAMERA_INPUT_ID}
+                  className="relative active:scale-95 transition-transform cursor-pointer"
                 >
                   <div className="w-[72px] h-[72px] rounded-full border-[4px] border-white flex items-center justify-center">
                     <div className="w-[58px] h-[58px] rounded-full bg-white" />
                   </div>
-                </button>
+                </label>
 
-                {/* Flip/rotate placeholder */}
+                {/* Flip placeholder */}
                 <button className="w-12 h-12 rounded-full bg-[#1E1E24] border border-[#27272A] flex items-center justify-center">
                   <RotateCcw size={20} className="text-text-primary" />
                 </button>
