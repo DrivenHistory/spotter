@@ -8,6 +8,39 @@ import { points } from "@/lib/rarity";
 import { RarityBadge } from "@/components/ui";
 
 const PENDING_SPOT_KEY = "spotter_pending_spot";
+const MAX_DIMENSION = 1500;
+const JPEG_QUALITY = 0.7;
+
+/** Compress image to JPEG, capping dimensions at MAX_DIMENSION */
+function compressImage(file: File): Promise<File> {
+  return new Promise((resolve, reject) => {
+    const img = new window.Image();
+    img.onload = () => {
+      let { width, height } = img;
+      if (width > MAX_DIMENSION || height > MAX_DIMENSION) {
+        const scale = MAX_DIMENSION / Math.max(width, height);
+        width = Math.round(width * scale);
+        height = Math.round(height * scale);
+      }
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) { resolve(file); return; }
+      ctx.drawImage(img, 0, 0, width, height);
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) { resolve(file); return; }
+          resolve(new File([blob], file.name.replace(/\.\w+$/, ".jpg"), { type: "image/jpeg" }));
+        },
+        "image/jpeg",
+        JPEG_QUALITY,
+      );
+    };
+    img.onerror = () => reject(new Error("Failed to load image"));
+    img.src = URL.createObjectURL(file);
+  });
+}
 
 export function savePendingSpot(result: IdentifyResult) {
   try { localStorage.setItem(PENDING_SPOT_KEY, JSON.stringify(result)); } catch {}
@@ -47,14 +80,15 @@ export function SpotTab({ active, onSaved, onClose, onLogin, onSignUp }: { activ
   }, [active, result, preview, identifying]);
 
   const handleFile = async (f: File) => {
-    setFile(f);
     setPreview(URL.createObjectURL(f));
     setResult(null);
     setSaved(null);
     setError(null);
     setIdentifying(true);
     try {
-      const res = await spotter.identify(f);
+      const compressed = await compressImage(f);
+      setFile(compressed);
+      const res = await spotter.identify(compressed);
       setResult(res);
     } catch (e: unknown) {
       const raw = e instanceof Error ? e.message : "";
@@ -95,6 +129,8 @@ export function SpotTab({ active, onSaved, onClose, onLogin, onSignUp }: { activ
     setResult(null);
     setSaved(null);
     setError(null);
+    // Re-open camera after state clears and camera view re-renders
+    setTimeout(() => cameraRef.current?.click(), 150);
   };
 
   // ── Result view ──
