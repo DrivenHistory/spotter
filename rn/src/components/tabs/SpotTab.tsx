@@ -241,10 +241,9 @@ export function SpotTab({ active, triggerFile, onTriggerFileConsumed, onSaved, o
                 <button className="w-full h-[52px] bg-accent-green rounded-[26px] text-white font-semibold text-[17px] flex items-center justify-center gap-2">
                   <Check size={18} /> Saved to Collection
                 </button>
-                {/* Spot Another — label opens camera natively */}
+                {/* Spot Another — label opens camera natively; clearState fires via handleFile when new file arrives */}
                 <label
                   htmlFor={CAMERA_INPUT_ID}
-                  onClick={clearState}
                   className="w-full h-[52px] border border-border-subtle rounded-[26px] text-text-secondary font-medium text-[15px] flex items-center justify-center cursor-pointer"
                 >
                   Spot Another Car

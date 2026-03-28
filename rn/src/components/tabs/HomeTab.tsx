@@ -14,7 +14,7 @@ import { GroupPickerSheet } from "@/components/groups/GroupPickerSheet";
 import { useGroups } from "@/lib/groups-context";
 import type { Group } from "@/lib/api";
 
-export function HomeTab({ onProfile }: { onProfile?: () => void }) {
+export function HomeTab({ onProfile, newSpot }: { onProfile?: () => void; newSpot?: SpottedCar | null }) {
   const { user } = useAuth();
   const { myGroups, pendingInvites, acceptInvite, declineInvite } = useGroups();
   const [feed, setFeed] = useState<SpottedCar[]>([]);
@@ -61,14 +61,25 @@ export function HomeTab({ onProfile }: { onProfile?: () => void }) {
   const hour = new Date().getHours();
   const timeGreeting = hour < 12 ? "Good morning," : hour < 18 ? "Good afternoon," : "Good evening,";
 
+  // Optimistically prepend a newly saved spot to feed and weekly carousel
+  const displayFeed = useMemo(() => {
+    if (!newSpot || feed.some((c) => c.id === newSpot.id)) return feed;
+    return [newSpot, ...feed];
+  }, [feed, newSpot]);
+
+  const displayWeekly = useMemo(() => {
+    if (!newSpot || weeklySpots.some((c) => c.id === newSpot.id)) return weeklySpots;
+    return [newSpot, ...weeklySpots];
+  }, [weeklySpots, newSpot]);
+
   const allNavigable = useMemo(() => {
     const seen = new Set<string>();
     const list: SpottedCar[] = [];
-    for (const c of [...weeklySpots.slice(0, 10), ...feed]) {
+    for (const c of [...displayWeekly.slice(0, 10), ...displayFeed]) {
       if (!seen.has(c.id)) { seen.add(c.id); list.push(c); }
     }
     return list;
-  }, [weeklySpots, feed]);
+  }, [displayWeekly, displayFeed]);
 
   if (selectedCar) {
     const idx = allNavigable.findIndex((c) => c.id === selectedCar.id);
@@ -102,7 +113,7 @@ export function HomeTab({ onProfile }: { onProfile?: () => void }) {
       </div>
 
       {/* Latest Spots carousel */}
-      {weeklySpots.length > 0 && (
+      {displayWeekly.length > 0 && (
         <div className="mb-5">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-[18px] font-semibold text-text-primary">Latest Spots</h2>
@@ -110,7 +121,7 @@ export function HomeTab({ onProfile }: { onProfile?: () => void }) {
           </div>
           {/* Carousel breaks out of px-5 to scroll edge-to-edge */}
           <div className="flex gap-3 overflow-x-auto scrollbar-hide -mx-5 px-5">
-            {weeklySpots.slice(0, 10).map((car) => (
+            {displayWeekly.slice(0, 10).map((car) => (
               <WeeklyCard key={car.id} car={car} onTap={() => setSelectedCar(car)} />
             ))}
           </div>
@@ -173,7 +184,7 @@ export function HomeTab({ onProfile }: { onProfile?: () => void }) {
         </div>
       ) : (
         <div className="flex flex-col gap-3">
-          {feed.map((car) => (
+          {displayFeed.map((car) => (
             <SpotRow key={car.id} car={car} onTap={() => setSelectedCar(car)} />
           ))}
         </div>

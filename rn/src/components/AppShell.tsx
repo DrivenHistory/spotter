@@ -93,7 +93,7 @@ export function AppShell({ onLogin, onSignUp }: { onLogin: () => void; onSignUp:
           <div className="h-full"><ProfileTab onBack={() => setShowProfile(false)} /></div>
         ) : (
           <>
-            <div className={tab === 0 ? "h-full" : "hidden"}><HomeTab onProfile={() => setShowProfile(true)} /></div>
+            <div className={tab === 0 ? "h-full" : "hidden"}><HomeTab onProfile={() => setShowProfile(true)} newSpot={lastSavedSpot} /></div>
             <div className={tab === 1 ? "h-full" : "hidden"}><CarsTab onLogin={onLogin} active={tab === 1} newSpot={lastSavedSpot} onAddCar={(file) => { setSpotTriggerFile(file); setTab(2); }} /></div>
             <div className={tab === 2 ? "h-full" : "hidden"}><SpotTab active={tab === 2} triggerFile={spotTriggerFile} onTriggerFileConsumed={() => setSpotTriggerFile(null)} onSaved={(spot) => { setLastSavedSpot(spot); setRefreshKey((k) => k + 1); }} onClose={() => setTab(0)} onLogin={onLogin} onSignUp={onSignUp} /></div>
             <div className={tab === 3 ? "h-full" : "hidden"}><CommunityTab onProfile={() => setShowProfile(true)} /></div>
