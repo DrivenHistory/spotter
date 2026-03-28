@@ -12,6 +12,12 @@ export function CarsTab({ onLogin, active = false, newSpot }: { onLogin: () => v
   const [cars, setCars] = useState<SpottedCar[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCar, setSelectedCar] = useState<SpottedCar | null>(null);
+  const [rareFilter, setRareFilter] = useState(false);
+
+  // Reset filter when tab is deactivated
+  useEffect(() => {
+    if (!active) setRareFilter(false);
+  }, [active]);
 
   // Re-fetch when tab becomes active
   useEffect(() => {
@@ -37,6 +43,10 @@ export function CarsTab({ onLogin, active = false, newSpot }: { onLogin: () => v
   const rareCount = displayCars.filter((c) =>
     ["Rare", "Very Rare", "Extremely Rare"].includes(c.rarity ?? "")
   ).length;
+
+  const visibleCars = rareFilter
+    ? displayCars.filter((c) => ["Rare", "Very Rare", "Extremely Rare"].includes(c.rarity ?? ""))
+    : displayCars;
 
   if (selectedCar) {
     const idx = displayCars.findIndex((c) => c.id === selectedCar.id);
@@ -82,10 +92,13 @@ export function CarsTab({ onLogin, active = false, newSpot }: { onLogin: () => v
               <span className="text-[24px] font-bold text-text-primary">{displayCars.length}</span>
               <span className="text-[11px] text-text-secondary">Total</span>
             </div>
-            <div className="flex-1 flex flex-col items-center justify-center rounded-[12px] bg-bg-card p-3 gap-0.5">
+            <button
+              onClick={() => setRareFilter((f) => !f)}
+              className={`flex-1 flex flex-col items-center justify-center rounded-[12px] p-3 gap-0.5 transition-colors ${rareFilter ? "bg-rarity-rare/20 ring-1 ring-rarity-rare/40" : "bg-bg-card"}`}
+            >
               <span className="text-[24px] font-bold text-rarity-rare">{rareCount}</span>
               <span className="text-[11px] text-text-secondary">Rare+</span>
-            </div>
+            </button>
             <div className="flex-1 flex flex-col items-center justify-center rounded-[12px] bg-bg-card p-3 gap-0.5">
               <span className="text-[24px] font-bold text-accent-coral">{totalPts}</span>
               <span className="text-[11px] text-text-secondary">Points</span>
@@ -102,9 +115,15 @@ export function CarsTab({ onLogin, active = false, newSpot }: { onLogin: () => v
               <p className="text-[16px] font-medium text-text-secondary">No cars spotted yet</p>
               <p className="text-[13px] text-text-muted mt-1">Use the Spot tab to identify your first car!</p>
             </div>
+          ) : visibleCars.length === 0 ? (
+            <div className="flex flex-col items-center py-16 text-center">
+              <div className="text-4xl mb-3">⭐</div>
+              <p className="text-[16px] font-medium text-text-secondary">No rare cars yet</p>
+              <p className="text-[13px] text-text-muted mt-1">Keep spotting to find Rare+ vehicles!</p>
+            </div>
           ) : (
             <div className="grid grid-cols-2 gap-3">
-              {displayCars.map((car) => (
+              {visibleCars.map((car) => (
                 <CarCard key={car.id} car={car} onTap={() => setSelectedCar(car)} />
               ))}
             </div>
