@@ -12,6 +12,8 @@ import { CommunityTab } from "@/components/tabs/CommunityTab";
 import { LeaderboardTab } from "@/components/tabs/LeaderboardTab";
 import { ProfileTab } from "@/components/tabs/ProfileTab";
 
+const SHELL_CAMERA_ID = "shell-camera-trigger";
+
 const TABS = [
   { icon: Home, label: "HOME" },
   { icon: Car, label: "CARS" },
@@ -27,6 +29,7 @@ export function AppShell({ onLogin, onSignUp }: { onLogin: () => void; onSignUp:
   const [showProfile, setShowProfile] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [lastSavedSpot, setLastSavedSpot] = useState<SpottedCar | null>(null);
+  const [spotTriggerFile, setSpotTriggerFile] = useState<File | null>(null);
   const pendingSaveAttempted = useRef(false);
   const pendingInviteAttempted = useRef(false);
 
@@ -70,6 +73,20 @@ export function AppShell({ onLogin, onSignUp }: { onLogin: () => void; onSignUp:
 
   return (
     <div className={`h-dvh flex flex-col bg-bg-page ${tab === 2 ? "" : "safe-top"}`}>
+      {/* Always-in-DOM camera input so the tab bar label can trigger it on iOS */}
+      <input
+        id={SHELL_CAMERA_ID}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          e.target.value = "";
+          if (f) { setSpotTriggerFile(f); setTab(2); }
+        }}
+      />
+
       {/* Tab content */}
       <div className="flex-1 overflow-hidden">
         {showProfile ? (
@@ -77,8 +94,8 @@ export function AppShell({ onLogin, onSignUp }: { onLogin: () => void; onSignUp:
         ) : (
           <>
             <div className={tab === 0 ? "h-full" : "hidden"}><HomeTab onProfile={() => setShowProfile(true)} /></div>
-            <div className={tab === 1 ? "h-full" : "hidden"}><CarsTab onLogin={onLogin} active={tab === 1} newSpot={lastSavedSpot} /></div>
-            <div className={tab === 2 ? "h-full" : "hidden"}><SpotTab active={tab === 2} onSaved={(spot) => { setLastSavedSpot(spot); setRefreshKey((k) => k + 1); }} onClose={() => setTab(0)} onLogin={onLogin} onSignUp={onSignUp} /></div>
+            <div className={tab === 1 ? "h-full" : "hidden"}><CarsTab onLogin={onLogin} active={tab === 1} newSpot={lastSavedSpot} onAddCar={(file) => { setSpotTriggerFile(file); setTab(2); }} /></div>
+            <div className={tab === 2 ? "h-full" : "hidden"}><SpotTab active={tab === 2} triggerFile={spotTriggerFile} onTriggerFileConsumed={() => setSpotTriggerFile(null)} onSaved={(spot) => { setLastSavedSpot(spot); setRefreshKey((k) => k + 1); }} onClose={() => setTab(0)} onLogin={onLogin} onSignUp={onSignUp} /></div>
             <div className={tab === 3 ? "h-full" : "hidden"}><CommunityTab onProfile={() => setShowProfile(true)} /></div>
             <div className={tab === 4 ? "h-full" : "hidden"}><LeaderboardTab refreshKey={refreshKey} /></div>
           </>
@@ -92,12 +109,12 @@ export function AppShell({ onLogin, onSignUp }: { onLogin: () => void; onSignUp:
           <TabButton icon={Home} label="HOME" active={tab === 0} onClick={() => setTab(0)} />
           {/* CARS */}
           <TabButton icon={Car} label="CARS" active={tab === 1} onClick={() => setTab(1)} />
-          {/* SPOT — center coral circle */}
-          <button onClick={() => setTab(2)} className="flex flex-col items-center">
+          {/* SPOT — label points to always-in-DOM input so iOS triggers camera directly */}
+          <label htmlFor={SHELL_CAMERA_ID} className="flex flex-col items-center cursor-pointer">
             <div className="w-14 h-14 rounded-full bg-accent-coral flex items-center justify-center">
               <Crosshair size={24} className="text-white" />
             </div>
-          </button>
+          </label>
           {/* COMMUNITY */}
           <TabButton icon={Users} label="COMMUNITY" active={tab === 3} onClick={() => setTab(3)} small />
           {/* TABLES */}

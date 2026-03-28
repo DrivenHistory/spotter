@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ArrowRight, Car, LogIn } from "lucide-react";
+import { ArrowRight, Car, LogIn, Plus } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { spotter, type SpottedCar } from "@/lib/api";
 import { points } from "@/lib/rarity";
 import { CarDetailView } from "@/components/CarDetailView";
 
-export function CarsTab({ onLogin, active = false, newSpot }: { onLogin: () => void; active?: boolean; newSpot?: SpottedCar | null }) {
+export function CarsTab({ onLogin, active = false, newSpot, onAddCar }: { onLogin: () => void; active?: boolean; newSpot?: SpottedCar | null; onAddCar?: (file: File) => void }) {
   const { user } = useAuth();
   const [cars, setCars] = useState<SpottedCar[]>([]);
   const [loading, setLoading] = useState(true);
@@ -44,8 +44,11 @@ export function CarsTab({ onLogin, active = false, newSpot }: { onLogin: () => v
     ["Rare", "Very Rare", "Extremely Rare"].includes(c.rarity ?? "")
   ).length;
 
+  const RARITY_ORDER: Record<string, number> = { "Extremely Rare": 0, "Very Rare": 1, "Rare": 2 };
   const visibleCars = rareFilter
-    ? displayCars.filter((c) => ["Rare", "Very Rare", "Extremely Rare"].includes(c.rarity ?? ""))
+    ? displayCars
+        .filter((c) => ["Rare", "Very Rare", "Extremely Rare"].includes(c.rarity ?? ""))
+        .sort((a, b) => (RARITY_ORDER[a.rarity ?? ""] ?? 99) - (RARITY_ORDER[b.rarity ?? ""] ?? 99))
     : displayCars;
 
   if (selectedCar) {
@@ -67,7 +70,31 @@ export function CarsTab({ onLogin, active = false, newSpot }: { onLogin: () => v
 
   return (
     <div className="h-full overflow-y-auto scrollbar-hide px-5 pb-24">
-      <h1 className="text-[28px] font-bold text-text-primary mb-4">My Cars</h1>
+      {/* Hidden gallery input — always accessible while CarsTab is visible */}
+      <input
+        id="cars-gallery-input"
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          e.target.value = "";
+          if (f) onAddCar?.(f);
+        }}
+      />
+
+      <div className="flex items-center justify-between mb-4">
+        <h1 className="text-[28px] font-bold text-text-primary">My Cars</h1>
+        {user && (
+          <label
+            htmlFor="cars-gallery-input"
+            className="w-9 h-9 flex items-center justify-center rounded-full bg-accent-coral/15 text-accent-coral active:opacity-70 transition-opacity cursor-pointer"
+            aria-label="Add car from library"
+          >
+            <Plus size={18} strokeWidth={2.5} />
+          </label>
+        )}
+      </div>
 
       {!user ? (
         <div className="flex flex-col items-center py-20 text-center">

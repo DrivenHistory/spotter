@@ -57,10 +57,10 @@ export function clearPendingSpot() {
   try { localStorage.removeItem(PENDING_SPOT_KEY); } catch {}
 }
 
-const CAMERA_INPUT_ID = "spot-camera-input";
+export const CAMERA_INPUT_ID = "spot-camera-input";
 const GALLERY_INPUT_ID = "spot-gallery-input";
 
-export function SpotTab({ active, onSaved, onClose, onLogin, onSignUp }: { active: boolean; onSaved: (spot: SpottedCar) => void; onClose: () => void; onLogin: () => void; onSignUp: () => void }) {
+export function SpotTab({ active, triggerFile, onTriggerFileConsumed, onSaved, onClose, onLogin, onSignUp }: { active: boolean; triggerFile?: File | null; onTriggerFileConsumed?: () => void; onSaved: (spot: SpottedCar) => void; onClose: () => void; onLogin: () => void; onSignUp: () => void }) {
   const { user } = useAuth();
   const cameraRef = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState<string | null>(null);
@@ -69,15 +69,15 @@ export function SpotTab({ active, onSaved, onClose, onLogin, onSignUp }: { activ
   const [identifying, setIdentifying] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const prevActive = useRef(false);
 
-  // Auto-open camera when tab first becomes active
+  // Handle file passed in from the tab bar label (AppShell)
   useEffect(() => {
-    if (active && !prevActive.current && !result && !preview && !identifying) {
-      setTimeout(() => cameraRef.current?.click(), 150);
+    if (triggerFile && active) {
+      onTriggerFileConsumed?.();
+      handleFile(triggerFile);
     }
-    prevActive.current = active;
-  }, [active, result, preview, identifying]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [triggerFile, active]);
 
   const handleFile = async (f: File) => {
     // Clear previous result so camera view shows while identifying

@@ -271,7 +271,7 @@ export function LeaderboardTab({ refreshKey = 0 }: { refreshKey?: number } = {})
                 // Apply vehicle filter if group is specific make/model
                 if (group.vehicleFilterType === "specific") {
                   if (group.vehicleMake && s.make.toLowerCase() !== group.vehicleMake.toLowerCase()) return false;
-                  if (group.vehicleModel && s.model.toLowerCase() !== group.vehicleModel.toLowerCase()) return false;
+                  if (group.vehicleModel && !s.model.toLowerCase().startsWith(group.vehicleModel.toLowerCase())) return false;
                 }
                 return true;
               });
