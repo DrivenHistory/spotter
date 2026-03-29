@@ -115,9 +115,8 @@ export function HomeTab({ onProfile, newSpot }: { onProfile?: () => void; newSpo
       {/* Latest Spots carousel */}
       {displayWeekly.length > 0 && (
         <div className="mb-5">
-          <div className="flex items-center justify-between mb-3">
+          <div className="mb-3">
             <h2 className="text-[18px] font-semibold text-text-primary">Latest Spots</h2>
-            <span className="text-[14px] text-accent-coral">See All</span>
           </div>
           {/* Carousel breaks out of px-5 to scroll edge-to-edge */}
           <div className="flex gap-3 overflow-x-auto scrollbar-hide -mx-5 px-5">
