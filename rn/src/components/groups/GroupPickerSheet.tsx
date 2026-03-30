@@ -17,7 +17,7 @@ export function GroupPickerSheet({ open, onClose, groups, onSelectGroup, onCreat
     <BottomSheet open={open} onClose={onClose} title="Invite Friends">
       <div className="flex flex-col gap-3 pb-8">
         <p className="text-[13px] text-text-secondary mb-1">
-          Choose a group to invite friends to, or create a new one.
+          Choose a game to invite friends to, or create a new one.
         </p>
 
         {/* Existing groups */}
@@ -47,8 +47,8 @@ export function GroupPickerSheet({ open, onClose, groups, onSelectGroup, onCreat
             <Plus size={20} className="text-accent-coral" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-[14px] font-semibold text-accent-coral">Create New Group</p>
-            <p className="text-[12px] text-text-secondary">Start a new group and invite friends</p>
+            <p className="text-[14px] font-semibold text-accent-coral">Create New Game</p>
+            <p className="text-[12px] text-text-secondary">Start a new game and invite friends</p>
           </div>
         </button>
       </div>
