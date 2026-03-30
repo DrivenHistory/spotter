@@ -43,7 +43,7 @@ export function InviteSheet({ open, onClose, group }: Props) {
 
   const handleShare = async (via?: "message") => {
     const url = inviteUrl ?? "";
-    const text = `Join my group "${group.name}" on Spotter!`;
+    const text = `Join my game "${group.name}" on Spotter!`;
     if (navigator.share) {
       try {
         await navigator.share({ title: `Join ${group.name}`, text, url });

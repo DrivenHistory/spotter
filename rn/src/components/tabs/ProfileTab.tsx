@@ -141,7 +141,7 @@ export function ProfileTab({ onBack }: { onBack?: () => void }) {
       {/* Group Memberships */}
       {myGroups.length > 0 && (
         <div className="mb-5">
-          <h3 className="text-[18px] font-semibold text-text-primary mb-3">Group Memberships</h3>
+          <h3 className="text-[18px] font-semibold text-text-primary mb-3">Game Memberships</h3>
           <div className="flex flex-col gap-3">
             {myGroups.map((m) => (
               <div key={m.group.id} className="flex items-center gap-3 p-3.5 bg-bg-card rounded-[12px]">
@@ -242,8 +242,8 @@ export function ProfileTab({ onBack }: { onBack?: () => void }) {
       {/* Leave group confirm */}
       {showLeaveConfirm && (
         <ConfirmModal
-          title="Leave Group"
-          message="Are you sure you want to leave this group? You'll need a new invite to rejoin."
+          title="Leave Game"
+          message="Are you sure you want to leave this game? You'll need a new invite to rejoin."
           confirmLabel="Leave"
           danger
           onCancel={() => setShowLeaveConfirm(null)}
@@ -254,8 +254,8 @@ export function ProfileTab({ onBack }: { onBack?: () => void }) {
       {/* Delete group confirm */}
       {showDeleteGroupConfirm && (
         <ConfirmModal
-          title="Delete Group"
-          message="This will permanently delete the group and remove all members. This cannot be undone."
+          title="Delete Game"
+          message="This will permanently delete the game and remove all members. This cannot be undone."
           confirmLabel="Delete"
           danger
           onCancel={() => setShowDeleteGroupConfirm(null)}

@@ -28,7 +28,7 @@ export function CreateGroupSheet({ open, onClose, onCreated }: Props) {
 
   const handleCreate = async () => {
     const trimmed = name.trim();
-    if (!trimmed) { setError("Please enter a group name"); return; }
+    if (!trimmed) { setError("Please enter a game name"); return; }
     if (trimmed.length < 2) { setError("Name must be at least 2 characters"); return; }
     if (filterType === "specific") {
       if (!vehicleMake.trim()) { setError("Please enter a vehicle make"); return; }
@@ -51,7 +51,7 @@ export function CreateGroupSheet({ open, onClose, onCreated }: Props) {
       setVehicleModel("");
       onCreated(group);
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Failed to create group");
+      setError(e instanceof Error ? e.message : "Failed to create game");
     } finally {
       setSubmitting(false);
     }
@@ -74,7 +74,7 @@ export function CreateGroupSheet({ open, onClose, onCreated }: Props) {
           {error && <p className="text-[12px] text-red-400">{error}</p>}
           <div className="flex items-center gap-1.5">
             <Info size={14} className="text-text-muted shrink-0" />
-            <span className="text-[11px] text-text-muted">Group names are checked for inappropriate content</span>
+            <span className="text-[11px] text-text-muted">Game names are checked for inappropriate content</span>
           </div>
         </div>
 
@@ -148,8 +148,8 @@ export function CreateGroupSheet({ open, onClose, onCreated }: Props) {
 
           <span className="text-[11px] text-text-muted">
             {filterType === "all"
-              ? "All spotted cars will count toward this group's points"
-              : "Only matching spots will earn points in this group"}
+              ? "All spotted cars will count toward this game's points"
+              : "Only matching spots will earn points in this game"}
           </span>
         </div>
 

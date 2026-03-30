@@ -91,7 +91,7 @@ export function CommunityTab({ onProfile }: { onProfile?: () => void }) {
           <div className="flex items-center gap-2 mb-3">
             <Mail size={18} className="text-accent-coral" />
             <h2 className="text-[16px] font-semibold text-text-primary">
-              {pendingInvites.length === 1 ? "You have a group invite!" : `You have ${pendingInvites.length} group invites!`}
+              {pendingInvites.length === 1 ? "You have a game invite!" : `You have ${pendingInvites.length} game invites!`}
             </h2>
           </div>
           <div className="flex flex-col gap-2.5">
