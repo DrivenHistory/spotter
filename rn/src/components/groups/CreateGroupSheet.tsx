@@ -58,11 +58,11 @@ export function CreateGroupSheet({ open, onClose, onCreated }: Props) {
   };
 
   return (
-    <BottomSheet open={open} onClose={onClose} title="Create a Group">
+    <BottomSheet open={open} onClose={onClose} title="Create a Game">
       <div className="flex flex-col gap-5 pb-8">
         {/* Group Name */}
         <div className="flex flex-col gap-2">
-          <label className="text-[13px] font-semibold text-text-secondary">Group Name</label>
+          <label className="text-[13px] font-semibold text-text-secondary">Game Name</label>
           <input
             type="text"
             value={name}
@@ -80,7 +80,7 @@ export function CreateGroupSheet({ open, onClose, onCreated }: Props) {
 
         {/* Group Icon */}
         <div className="flex flex-col gap-2">
-          <label className="text-[13px] font-semibold text-text-secondary">Group Icon</label>
+          <label className="text-[13px] font-semibold text-text-secondary">Game Icon</label>
           <div className="flex gap-3">
             {ICONS.map((emoji) => (
               <button
@@ -170,7 +170,7 @@ export function CreateGroupSheet({ open, onClose, onCreated }: Props) {
           ) : (
             <>
               <Plus size={20} className="text-white" />
-              <span className="text-[16px] font-bold text-white">Create Group</span>
+              <span className="text-[16px] font-bold text-white">Create Game</span>
             </>
           )}
         </button>

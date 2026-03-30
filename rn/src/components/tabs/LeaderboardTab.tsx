@@ -45,7 +45,7 @@ export function LeaderboardTab({ refreshKey = 0 }: { refreshKey?: number } = {})
 
   // Dynamic tabs: All Time | Groups | <per-group tabs>
   const tabs = useMemo(() => {
-    const base = ["All Time", "Groups"];
+    const base = ["All Time", "Games"];
     for (const m of myGroups) base.push(m.group.name);
     return base;
   }, [myGroups]);
@@ -203,7 +203,7 @@ export function LeaderboardTab({ refreshKey = 0 }: { refreshKey?: number } = {})
       ) : selectedTab === 1 ? (
         /* ── Groups Tab ── */
         groupRankings.length === 0 ? (
-          <EmptyState message="No groups yet" sub="Create a group to start competing!" />
+          <EmptyState message="No games yet" sub="Create a game to start competing!" />
         ) : (
           <>
             {groupRankings.length >= 2 && (

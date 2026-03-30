@@ -13,7 +13,7 @@ export function InviteFriendsCard({ onTap }: { onTap: () => void }) {
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-[16px] font-semibold text-text-primary">Invite Friends</p>
-        <p className="text-[12px] text-text-secondary">Create a group & compete together</p>
+        <p className="text-[12px] text-text-secondary">Create a game & compete together</p>
       </div>
       <ChevronRight size={20} className="text-accent-coral shrink-0" />
     </button>

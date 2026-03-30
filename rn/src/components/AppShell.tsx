@@ -118,7 +118,7 @@ export function AppShell({ onLogin, onSignUp }: { onLogin: () => void; onSignUp:
           {/* COMMUNITY */}
           <TabButton icon={Users} label="COMMUNITY" active={tab === 3} onClick={() => setTab(3)} small />
           {/* TABLES */}
-          <TabButton icon={Trophy} label="TABLES" active={tab === 4} onClick={() => setTab(4)} />
+          <TabButton icon={Trophy} label="GAMES" active={tab === 4} onClick={() => setTab(4)} />
         </div>
       )}
     </div>
