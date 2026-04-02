@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Image as ImageIcon, ArrowLeft, Check, Zap, RotateCcw, X, LogIn } from "lucide-react";
+import { Geolocation } from "@capacitor/geolocation";
 import { spotter, type IdentifyResult, type SpottedCar } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { points } from "@/lib/rarity";
@@ -60,24 +61,19 @@ export function clearPendingSpot() {
 export const CAMERA_INPUT_ID = "spot-camera-input";
 const GALLERY_INPUT_ID = "spot-gallery-input";
 
-function captureLocation(): Promise<{ lat: number; lng: number } | null> {
-  return new Promise((resolve) => {
-    // JS-level fallback: WKWebView may not fire the error callback while a
-    // permission dialog is pending, so the geolocation `timeout` option alone
-    // is not reliable on iOS. Resolve null after 10 s no matter what.
-    const fallback = setTimeout(() => resolve(null), 10_000);
-    const done = (val: { lat: number; lng: number } | null) => {
-      clearTimeout(fallback);
-      resolve(val);
-    };
-
-    if (!navigator.geolocation) { done(null); return; }
-    navigator.geolocation.getCurrentPosition(
-      (pos) => done({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-      () => done(null),
-      { timeout: 8000, maximumAge: 30000, enableHighAccuracy: true },
-    );
-  });
+async function captureLocation(): Promise<{ lat: number; lng: number } | null> {
+  try {
+    // Request permission first — this triggers the native iOS prompt via Capacitor
+    const perm = await Geolocation.requestPermissions();
+    if (perm.location !== "granted") return null;
+    const pos = await Geolocation.getCurrentPosition({
+      enableHighAccuracy: true,
+      timeout: 8000,
+    });
+    return { lat: pos.coords.latitude, lng: pos.coords.longitude };
+  } catch {
+    return null;
+  }
 }
 
 export function SpotTab({ active, triggerFile, onTriggerFileConsumed, onSaved, onClose, onLogin, onSignUp }: { active: boolean; triggerFile?: File | null; onTriggerFileConsumed?: () => void; onSaved: (spot: SpottedCar) => void; onClose: () => void; onLogin: () => void; onSignUp: () => void }) {
