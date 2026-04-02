@@ -1,65 +1,141 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ArrowRight, Car, LogIn, Plus } from "lucide-react";
-import { useAuth } from "@/lib/auth-context";
-import { spotter, type SpottedCar } from "@/lib/api";
-import { points } from "@/lib/rarity";
+import { spotter, user as userApi, type SpottedCar } from "@/lib/api";
+import { points, RARITY_POINTS } from "@/lib/rarity";
 import { CarDetailView } from "@/components/CarDetailView";
+import { useAuth } from "@/lib/auth-context";
+import { Zap, Flame, Star, DollarSign } from "lucide-react";
 
-export function CarsTab({ onLogin, active = false, newSpot, onAddCar }: { onLogin: () => void; active?: boolean; newSpot?: SpottedCar | null; onAddCar?: (file: File) => void }) {
+const RARITY_ORDER: Record<string, number> = {
+  "Extremely Rare": 0,
+  "Very Rare": 1,
+  Rare: 2,
+  Uncommon: 3,
+  Common: 4,
+};
+
+function parseNum(val?: string): number {
+  if (!val) return -1;
+  const match = val.match(/[\d,]+(\.\d+)?/);
+  if (!match) return -1;
+  const n = parseFloat(match[0].replace(/,/g, ""));
+  return isNaN(n) ? -1 : n;
+}
+
+export function CarsTab({
+  onLogin,
+  onProfile,
+  active = false,
+  newSpot,
+  onAddCar,
+}: {
+  onLogin: () => void;
+  onProfile?: () => void;
+  active?: boolean;
+  newSpot?: SpottedCar | null;
+  onAddCar?: (file: File) => void;
+}) {
   const { user } = useAuth();
   const [cars, setCars] = useState<SpottedCar[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCar, setSelectedCar] = useState<SpottedCar | null>(null);
-  const [rareFilter, setRareFilter] = useState(false);
+  const [brandFilter, setBrandFilter] = useState<string>("All");
+  const [dbDisplayName, setDbDisplayName] = useState<string | null>(null);
 
-  // Reset filter when tab is deactivated
   useEffect(() => {
-    if (!active) setRareFilter(false);
-  }, [active]);
+    if (!user) return;
+    (async () => {
+      try {
+        const s = await userApi.getSettings();
+        if (s.displayName) setDbDisplayName(s.displayName);
+      } catch { /* ignore */ }
+    })();
+  }, [user]);
 
-  // Re-fetch when tab becomes active
+  const initials = (() => {
+    const name = dbDisplayName ?? user?.name ?? "S";
+    const parts = name.split(" ");
+    return parts.length >= 2
+      ? (parts[0][0] + parts[1][0]).toUpperCase()
+      : name.slice(0, 2).toUpperCase();
+  })();
+
   useEffect(() => {
-    if (!user || !active) return;
+    if (!active) return;
     setLoading(true);
     (async () => {
       try {
         const { spots } = await spotter.getFeed();
-        setCars(spots.filter((s) => s.spotterEmail.toLowerCase() === user.email.toLowerCase()));
+        setCars(spots);
       } catch { /* ignore */ }
       setLoading(false);
     })();
-  }, [user, active]);
+  }, [active]);
 
-  // Optimistically prepend any newly saved spot so it shows instantly without waiting for re-fetch
-  const displayCars = useMemo(() => {
+  const allCars = useMemo(() => {
     if (!newSpot) return cars;
-    const alreadyInList = cars.some((c) => c.id === newSpot.id);
-    return alreadyInList ? cars : [newSpot, ...cars];
+    return cars.some((c) => c.id === newSpot.id) ? cars : [newSpot, ...cars];
   }, [cars, newSpot]);
 
-  const totalPts = displayCars.reduce((s, c) => s + points(c.rarity), 0);
-  const rareCount = displayCars.filter((c) =>
-    ["Rare", "Very Rare", "Extremely Rare"].includes(c.rarity ?? "")
-  ).length;
+  const brands = useMemo(() => {
+    const makes = Array.from(new Set(allCars.map((c) => c.make).filter(Boolean))).sort();
+    return ["All", ...makes];
+  }, [allCars]);
 
-  const RARITY_ORDER: Record<string, number> = { "Extremely Rare": 0, "Very Rare": 1, "Rare": 2 };
-  const visibleCars = rareFilter
-    ? displayCars
-        .filter((c) => ["Rare", "Very Rare", "Extremely Rare"].includes(c.rarity ?? ""))
-        .sort((a, b) => (RARITY_ORDER[a.rarity ?? ""] ?? 99) - (RARITY_ORDER[b.rarity ?? ""] ?? 99))
-    : displayCars;
+  const filtered = useMemo(
+    () => (brandFilter === "All" ? allCars : allCars.filter((c) => c.make === brandFilter)),
+    [allCars, brandFilter]
+  );
+
+  const fastest = useMemo(
+    () =>
+      [...filtered]
+        .filter((c) => parseNum(c.topSpeed) > 0)
+        .sort((a, b) => parseNum(b.topSpeed) - parseNum(a.topSpeed))
+        .slice(0, 5),
+    [filtered]
+  );
+
+  const mostPowerful = useMemo(
+    () =>
+      [...filtered]
+        .filter((c) => parseNum(c.bhp) > 0)
+        .sort((a, b) => parseNum(b.bhp) - parseNum(a.bhp))
+        .slice(0, 5),
+    [filtered]
+  );
+
+  const rarest = useMemo(
+    () =>
+      [...filtered]
+        .filter((c) => c.rarity && RARITY_ORDER[c.rarity] !== undefined)
+        .sort(
+          (a, b) =>
+            (RARITY_ORDER[a.rarity ?? ""] ?? 99) - (RARITY_ORDER[b.rarity ?? ""] ?? 99)
+        )
+        .slice(0, 5),
+    [filtered]
+  );
+
+  const mostValuable = useMemo(
+    () =>
+      [...filtered]
+        .filter((c) => parseNum(c.marketValue) > 0)
+        .sort((a, b) => parseNum(b.marketValue) - parseNum(a.marketValue))
+        .slice(0, 5),
+    [filtered]
+  );
 
   if (selectedCar) {
-    const idx = displayCars.findIndex((c) => c.id === selectedCar.id);
+    const idx = allCars.findIndex((c) => c.id === selectedCar.id);
     return (
       <CarDetailView
         car={selectedCar}
         onBack={() => setSelectedCar(null)}
-        onNext={idx < displayCars.length - 1 ? () => setSelectedCar(displayCars[idx + 1]) : undefined}
-        onPrev={idx > 0 ? () => setSelectedCar(displayCars[idx - 1]) : undefined}
-        canDelete
+        onNext={idx < allCars.length - 1 ? () => setSelectedCar(allCars[idx + 1]) : undefined}
+        onPrev={idx > 0 ? () => setSelectedCar(allCars[idx - 1]) : undefined}
+        canDelete={!!user && selectedCar.spotterEmail.toLowerCase() === user.email.toLowerCase()}
         onDelete={(id) => {
           setCars((prev) => prev.filter((c) => c.id !== id));
           setSelectedCar(null);
@@ -69,126 +145,143 @@ export function CarsTab({ onLogin, active = false, newSpot, onAddCar }: { onLogi
   }
 
   return (
-    <div className="h-full overflow-y-auto scrollbar-hide px-5 pb-24">
-      {/* Hidden gallery input — always accessible while CarsTab is visible */}
-      <input
-        id="cars-gallery-input"
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={(e) => {
-          const f = e.target.files?.[0];
-          e.target.value = "";
-          if (f) onAddCar?.(f);
-        }}
-      />
-
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="text-[28px] font-bold text-text-primary">My Cars</h1>
-        {user && (
-          <label
-            htmlFor="cars-gallery-input"
-            className="w-9 h-9 flex items-center justify-center rounded-full bg-accent-coral/15 text-accent-coral active:opacity-70 transition-opacity cursor-pointer"
-            aria-label="Add car from library"
-          >
-            <Plus size={18} strokeWidth={2.5} />
-          </label>
-        )}
+    <div className="h-full flex flex-col">
+      {/* Header */}
+      <div className="px-5 pt-4 pb-3 flex items-center justify-between shrink-0">
+        <h1 className="text-[28px] font-bold text-text-primary">Top Spots</h1>
+        <button
+          onClick={onProfile}
+          className="w-10 h-10 rounded-full bg-accent-coral flex items-center justify-center shrink-0"
+        >
+          <span className="text-sm font-bold text-white">{user ? initials : "?"}</span>
+        </button>
       </div>
 
-      {!user ? (
-        <div className="flex flex-col items-center py-20 text-center">
-          <div className="w-16 h-16 rounded-full bg-accent-coral/10 flex items-center justify-center mb-4">
-            <Car size={28} className="text-accent-coral" />
-          </div>
-          <p className="text-[18px] font-semibold text-text-primary mb-2">Sign in to see your cars</p>
-          <p className="text-[14px] text-text-secondary mb-6 px-6">Create an account to save spotted cars and track your collection.</p>
-          <button
-            onClick={onLogin}
-            className="flex items-center gap-2 h-[48px] px-8 bg-accent-coral rounded-[24px] text-white font-semibold text-[16px] active:scale-[0.97] transition-transform"
-          >
-            <LogIn size={18} />
-            Sign In
-          </button>
-        </div>
-      ) : (
-        <>
-          {/* Stats */}
-          <div className="flex gap-3 mb-4">
-            <div className="flex-1 flex flex-col items-center justify-center rounded-[12px] bg-bg-card p-3 gap-0.5">
-              <span className="text-[24px] font-bold text-text-primary">{displayCars.length}</span>
-              <span className="text-[11px] text-text-secondary">Total</span>
-            </div>
+      {/* Brand filter pills */}
+      <div className="shrink-0 overflow-x-auto scrollbar-hide px-5 pb-3">
+        <div className="flex gap-2 w-max">
+          {brands.map((brand) => (
             <button
-              onClick={() => setRareFilter((f) => !f)}
-              className={`flex-1 flex flex-col items-center justify-center rounded-[12px] p-3 gap-0.5 transition-colors ${rareFilter ? "bg-rarity-rare/20 ring-1 ring-rarity-rare/40" : "bg-bg-card"}`}
+              key={brand}
+              onClick={() => setBrandFilter(brand)}
+              className={`px-3 h-8 rounded-full text-[13px] font-medium whitespace-nowrap transition-colors ${
+                brandFilter === brand
+                  ? "bg-accent-coral text-white"
+                  : "bg-bg-card text-text-secondary"
+              }`}
             >
-              <span className="text-[24px] font-bold text-rarity-rare">{rareCount}</span>
-              <span className="text-[11px] text-text-secondary">Rare+</span>
+              {brand}
             </button>
-            <div className="flex-1 flex flex-col items-center justify-center rounded-[12px] bg-bg-card p-3 gap-0.5">
-              <span className="text-[24px] font-bold text-accent-coral">{totalPts}</span>
-              <span className="text-[11px] text-text-secondary">Points</span>
-            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Sections */}
+      <div className="flex-1 overflow-y-auto scrollbar-hide px-5 pb-24">
+        {loading ? (
+          <div className="flex justify-center py-16">
+            <div className="w-6 h-6 border-2 border-accent-coral border-t-transparent rounded-full animate-spin" />
           </div>
-
-          {loading ? (
-            <div className="flex justify-center py-12">
-              <div className="w-6 h-6 border-2 border-accent-coral border-t-transparent rounded-full animate-spin" />
-            </div>
-          ) : displayCars.length === 0 ? (
-            <div className="flex flex-col items-center py-16 text-center">
-              <div className="text-4xl mb-3 text-text-tertiary">🚗</div>
-              <p className="text-[16px] font-medium text-text-secondary">No cars spotted yet</p>
-              <p className="text-[13px] text-text-muted mt-1">Use the Spot tab to identify your first car!</p>
-            </div>
-          ) : visibleCars.length === 0 ? (
-            <div className="flex flex-col items-center py-16 text-center">
-              <div className="text-4xl mb-3">⭐</div>
-              <p className="text-[16px] font-medium text-text-secondary">No rare cars yet</p>
-              <p className="text-[13px] text-text-muted mt-1">Keep spotting to find Rare+ vehicles!</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 gap-3">
-              {visibleCars.map((car) => (
-                <CarCard key={car.id} car={car} onTap={() => setSelectedCar(car)} />
-              ))}
-            </div>
-          )}
-
-          {/* DrivenHistory promo */}
-          <button
-            onClick={() => window.open("https://www.drivenhistory.com", "_blank")}
-            className="mt-4 w-full flex items-center gap-3.5 p-4 bg-bg-card rounded-[16px] border border-accent-coral/20"
-          >
-            <img src="/dh-logo-horizontal.png" alt="DH" className="w-12 h-12 rounded-[12px] object-contain" />
-            <div className="flex-1 text-left flex flex-col gap-1">
-              <p className="text-[14px] font-semibold text-text-primary">Capture your Car History</p>
-              <p className="text-[12px] text-text-secondary">View your garage on DrivenHistory.com</p>
-            </div>
-            <ArrowRight size={20} className="text-accent-coral shrink-0" />
-          </button>
-        </>
-      )}
+        ) : (
+          <>
+            <Section
+              icon={<Zap size={16} className="text-accent-amber" />}
+              title="Fastest"
+              color="text-accent-amber"
+              cars={fastest}
+              stat={(c) => c.topSpeed ?? ""}
+              onSelect={setSelectedCar}
+            />
+            <Section
+              icon={<Flame size={16} className="text-accent-coral" />}
+              title="Most Powerful"
+              color="text-accent-coral"
+              cars={mostPowerful}
+              stat={(c) => c.bhp ?? ""}
+              onSelect={setSelectedCar}
+            />
+            <Section
+              icon={<Star size={16} className="text-rarity-very-rare" />}
+              title="Rarest"
+              color="text-rarity-very-rare"
+              cars={rarest}
+              stat={(c) => c.rarity ?? ""}
+              onSelect={setSelectedCar}
+            />
+            <Section
+              icon={<DollarSign size={16} className="text-accent-green" />}
+              title="Most Valuable"
+              color="text-accent-green"
+              cars={mostValuable}
+              stat={(c) => c.marketValue ?? ""}
+              onSelect={setSelectedCar}
+            />
+          </>
+        )}
+      </div>
     </div>
   );
 }
 
-function CarCard({ car, onTap }: { car: SpottedCar; onTap: () => void }) {
-  const displayName = [car.year, car.make, car.model].filter(Boolean).join(" ");
-  const rarityLabel = car.rarity ? `${car.rarity} · ${points(car.rarity)} pts` : null;
-  const rarityColor = car.rarity ? `text-rarity-${car.rarity.toLowerCase().replace(/\s+/g, "-")}` : "";
+function Section({
+  icon,
+  title,
+  color,
+  cars,
+  stat,
+  onSelect,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  color: string;
+  cars: SpottedCar[];
+  stat: (c: SpottedCar) => string;
+  onSelect: (c: SpottedCar) => void;
+}) {
+  if (cars.length === 0) return null;
+
   return (
-    <button onClick={onTap} className="rounded-[16px] bg-bg-card overflow-hidden text-left">
-      {car.imageUrl ? (
-        <img src={car.imageUrl} alt={displayName} className="w-full h-[100px] object-cover" />
-      ) : (
-        <div className="w-full h-[100px] bg-bg-elevated" />
-      )}
-      <div className="py-2 px-3">
-        <p className="text-[13px] font-semibold text-text-primary truncate">{displayName}</p>
-        {rarityLabel && <p className={`text-[11px] mt-0.5 ${rarityColor}`}>{rarityLabel}</p>}
+    <div className="mb-6">
+      <div className="flex items-center gap-1.5 mb-3">
+        {icon}
+        <h2 className={`text-[16px] font-semibold ${color}`}>{title}</h2>
       </div>
-    </button>
+      <div className="flex flex-col gap-2">
+        {cars.map((car, i) => {
+          const name = [car.year, car.make, car.model].filter(Boolean).join(" ");
+          const statVal = stat(car);
+          return (
+            <button
+              key={car.id}
+              onClick={() => onSelect(car)}
+              className="flex items-center gap-3 bg-bg-card rounded-[14px] overflow-hidden active:opacity-80 transition-opacity"
+            >
+              {/* Rank */}
+              <span className="w-9 shrink-0 text-center text-[13px] font-bold text-text-muted">
+                #{i + 1}
+              </span>
+              {/* Thumbnail */}
+              {car.imageUrl ? (
+                <img
+                  src={car.imageUrl}
+                  alt={name}
+                  className="w-[64px] h-[48px] object-cover shrink-0"
+                />
+              ) : (
+                <div className="w-[64px] h-[48px] bg-bg-elevated shrink-0" />
+              )}
+              {/* Info */}
+              <div className="flex-1 min-w-0 py-2 pr-3">
+                <p className="text-[13px] font-semibold text-text-primary truncate">{name}</p>
+                <p className="text-[11px] text-text-muted truncate">{car.spotterName || car.spotterEmail.split("@")[0]}</p>
+                {statVal && (
+                  <p className={`text-[12px] mt-0.5 font-medium ${color}`}>{statVal}</p>
+                )}
+              </div>
+            </button>
+          );
+        })}
+      </div>
+    </div>
   );
 }

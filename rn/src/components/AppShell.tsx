@@ -5,6 +5,7 @@ import { Home, Car, Crosshair, Users, Trophy } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useGroups } from "@/lib/groups-context";
 import { spotter, type SpottedCar } from "@/lib/api";
+import { initialisePush, teardownPush } from "@/lib/push";
 import { HomeTab } from "@/components/tabs/HomeTab";
 import { CarsTab } from "@/components/tabs/CarsTab";
 import { SpotTab, getPendingSpot, clearPendingSpot } from "@/components/tabs/SpotTab";
@@ -26,12 +27,32 @@ export function AppShell({ onLogin, onSignUp }: { onLogin: () => void; onSignUp:
   const { user } = useAuth();
   const { joinByCode, refreshGroups } = useGroups();
   const [tab, setTab] = useState(0);
+  const pushInitialised = useRef(false);
   const [showProfile, setShowProfile] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [lastSavedSpot, setLastSavedSpot] = useState<SpottedCar | null>(null);
   const [spotTriggerFile, setSpotTriggerFile] = useState<File | null>(null);
   const pendingSaveAttempted = useRef(false);
   const pendingInviteAttempted = useRef(false);
+
+  // Hide the Capacitor native splash screen once the web app has rendered
+  useEffect(() => {
+    import("@capacitor/splash-screen").then(({ SplashScreen }) => {
+      SplashScreen.hide();
+    }).catch(() => {/* not running in Capacitor */});
+  }, []);
+
+  // Initialise push when user logs in; teardown on logout
+  useEffect(() => {
+    if (user && !pushInitialised.current) {
+      pushInitialised.current = true;
+      initialisePush();
+    }
+    if (!user && pushInitialised.current) {
+      pushInitialised.current = false;
+      teardownPush();
+    }
+  }, [user]);
 
   // Auto-join group if a pending invite code is stored (from deep link)
   useEffect(() => {
@@ -67,7 +88,7 @@ export function AppShell({ onLogin, onSignUp }: { onLogin: () => void; onSignUp:
       topSpeed: pending.topSpeed,
     }).then(() => {
       setRefreshKey((k) => k + 1);
-      setTab(1);
+      setTab(0);
     }).catch(() => {});
   }, [user]);
 
@@ -93,10 +114,10 @@ export function AppShell({ onLogin, onSignUp }: { onLogin: () => void; onSignUp:
           <div className="h-full"><ProfileTab onBack={() => setShowProfile(false)} /></div>
         ) : (
           <>
-            <div className={tab === 0 ? "h-full" : "hidden"}><HomeTab onProfile={() => setShowProfile(true)} newSpot={lastSavedSpot} /></div>
-            <div className={tab === 1 ? "h-full" : "hidden"}><CarsTab onLogin={onLogin} active={tab === 1} newSpot={lastSavedSpot} onAddCar={(file) => { setSpotTriggerFile(file); setTab(2); }} /></div>
+            <div className={tab === 0 ? "h-full" : "hidden"}><HomeTab onLogin={onLogin} onProfile={() => setShowProfile(true)} active={tab === 0} newSpot={lastSavedSpot} onAddCar={(file) => { setSpotTriggerFile(file); setTab(2); }} /></div>
+            <div className={tab === 1 ? "h-full" : "hidden"}><CommunityTab onProfile={() => setShowProfile(true)} /></div>
             <div className={tab === 2 ? "h-full" : "hidden"}><SpotTab active={tab === 2} triggerFile={spotTriggerFile} onTriggerFileConsumed={() => setSpotTriggerFile(null)} onSaved={(spot) => { setLastSavedSpot(spot); setRefreshKey((k) => k + 1); }} onClose={() => setTab(0)} onLogin={onLogin} onSignUp={onSignUp} /></div>
-            <div className={tab === 3 ? "h-full" : "hidden"}><CommunityTab onProfile={() => setShowProfile(true)} /></div>
+            <div className={tab === 3 ? "h-full" : "hidden"}><CarsTab onLogin={onLogin} onProfile={() => setShowProfile(true)} active={tab === 3} newSpot={lastSavedSpot} onAddCar={(file) => { setSpotTriggerFile(file); setTab(2); }} /></div>
             <div className={tab === 4 ? "h-full" : "hidden"}><LeaderboardTab refreshKey={refreshKey} /></div>
           </>
         )}
@@ -107,16 +128,16 @@ export function AppShell({ onLogin, onSignUp }: { onLogin: () => void; onSignUp:
         <div className="flex items-center justify-around bg-bg-card pt-2" style={{ paddingBottom: "calc(24px + env(safe-area-inset-bottom, 0px))" }}>
           {/* HOME */}
           <TabButton icon={Home} label="HOME" active={tab === 0} onClick={() => setTab(0)} />
-          {/* CARS */}
-          <TabButton icon={Car} label="CARS" active={tab === 1} onClick={() => setTab(1)} />
+          {/* COMMUNITY */}
+          <TabButton icon={Users} label="COMMUNITY" active={tab === 1} onClick={() => setTab(1)} small />
           {/* SPOT — label points to always-in-DOM input so iOS triggers camera directly */}
           <label htmlFor={SHELL_CAMERA_ID} className="flex flex-col items-center cursor-pointer">
             <div className="w-14 h-14 rounded-full bg-accent-coral flex items-center justify-center">
               <Crosshair size={24} className="text-white" />
             </div>
           </label>
-          {/* COMMUNITY */}
-          <TabButton icon={Users} label="COMMUNITY" active={tab === 3} onClick={() => setTab(3)} small />
+          {/* TOP */}
+          <TabButton icon={Car} label="TOP" active={tab === 3} onClick={() => setTab(3)} />
           {/* TABLES */}
           <TabButton icon={Trophy} label="GAMES" active={tab === 4} onClick={() => setTab(4)} />
         </div>

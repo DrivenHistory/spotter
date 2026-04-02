@@ -1,45 +1,69 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
-import { Check, X, Mail } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Bell, Car, Layers, LogIn, Map, Plus, Star } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { spotter, user as userApi, type SpottedCar } from "@/lib/api";
-import { points } from "@/lib/rarity";
+import { points, spotterLevel } from "@/lib/rarity";
 import { relativeTime } from "@/lib/time";
 import { CarDetailView } from "@/components/CarDetailView";
-import { InviteFriendsCard } from "@/components/groups/InviteFriendsCard";
-import { CreateGroupSheet } from "@/components/groups/CreateGroupSheet";
-import { InviteSheet } from "@/components/groups/InviteSheet";
-import { GroupPickerSheet } from "@/components/groups/GroupPickerSheet";
-import { useGroups } from "@/lib/groups-context";
-import type { Group } from "@/lib/api";
+import { MapView } from "@/components/MapView";
 
-export function HomeTab({ onProfile, newSpot }: { onProfile?: () => void; newSpot?: SpottedCar | null }) {
+const RARITY_ORDER: Record<string, number> = {
+  "Extremely Rare": 0,
+  "Very Rare": 1,
+  Rare: 2,
+  Uncommon: 3,
+  Common: 4,
+};
+
+type RarityFilter = "All" | "Rare+" | "Extremely Rare";
+
+function rarityTextClass(rarity?: string): string {
+  switch (rarity) {
+    case "Extremely Rare": return "text-rarity-extremely-rare";
+    case "Very Rare":      return "text-rarity-very-rare";
+    case "Rare":           return "text-rarity-rare";
+    case "Uncommon":       return "text-rarity-uncommon";
+    default:               return "text-rarity-common";
+  }
+}
+
+function rarityDotClass(rarity?: string): string {
+  switch (rarity) {
+    case "Extremely Rare": return "bg-rarity-extremely-rare";
+    case "Very Rare":      return "bg-rarity-very-rare";
+    case "Rare":           return "bg-rarity-rare";
+    case "Uncommon":       return "bg-rarity-uncommon";
+    default:               return "bg-rarity-common";
+  }
+}
+
+export function HomeTab({
+  onLogin,
+  onProfile,
+  active = false,
+  newSpot,
+  onAddCar,
+}: {
+  onLogin: () => void;
+  onProfile?: () => void;
+  active?: boolean;
+  newSpot?: SpottedCar | null;
+  onAddCar?: (file: File) => void;
+}) {
   const { user } = useAuth();
-  const { myGroups, pendingInvites, acceptInvite, declineInvite } = useGroups();
-  const [feed, setFeed] = useState<SpottedCar[]>([]);
-  const [weeklySpots, setWeeklySpots] = useState<SpottedCar[]>([]);
+  const [cars, setCars] = useState<SpottedCar[]>([]);
   const [loading, setLoading] = useState(true);
-  const [dbDisplayName, setDbDisplayName] = useState<string | null>(null);
   const [selectedCar, setSelectedCar] = useState<SpottedCar | null>(null);
-  const [showGroupPicker, setShowGroupPicker] = useState(false);
-  const [showCreateGroup, setShowCreateGroup] = useState(false);
-  const [inviteGroup, setInviteGroup] = useState<Group | null>(null);
+  const [showMap, setShowMap] = useState(false);
+  const [rarityFilter, setRarityFilter] = useState<RarityFilter>("All");
+  const [dbDisplayName, setDbDisplayName] = useState<string | null>(null);
 
   useEffect(() => {
-    async function load() {
-      try {
-        const [feedRes, weeklyRes] = await Promise.all([
-          spotter.getFeed(),
-          spotter.getWeekly(),
-        ]);
-        setFeed(feedRes.spots);
-        setWeeklySpots(weeklyRes.spots);
-      } catch { /* ignore */ }
-      setLoading(false);
-    }
-    load();
-  }, []);
+    if (!active) return;
+    setRarityFilter("All");
+  }, [active]);
 
   useEffect(() => {
     if (!user) return;
@@ -51,48 +75,78 @@ export function HomeTab({ onProfile, newSpot }: { onProfile?: () => void; newSpo
     })();
   }, [user]);
 
-  const firstName = (dbDisplayName ?? user?.name ?? "Spotter").split(" ")[0];
   const initials = (() => {
     const name = dbDisplayName ?? user?.name ?? "S";
     const parts = name.split(" ");
-    return parts.length >= 2 ? (parts[0][0] + parts[1][0]).toUpperCase() : name.slice(0, 2).toUpperCase();
+    return parts.length >= 2
+      ? (parts[0][0] + parts[1][0]).toUpperCase()
+      : name.slice(0, 2).toUpperCase();
   })();
 
-  const hour = new Date().getHours();
-  const timeGreeting = hour < 12 ? "Good morning," : hour < 18 ? "Good afternoon," : "Good evening,";
+  useEffect(() => {
+    if (!user || !active) return;
+    setLoading(true);
+    (async () => {
+      try {
+        const { spots } = await spotter.getFeed();
+        setCars(spots.filter((s) => s.spotterEmail.toLowerCase() === user.email.toLowerCase()));
+      } catch { /* ignore */ }
+      setLoading(false);
+    })();
+  }, [user, active]);
 
-  // Optimistically prepend a newly saved spot to feed and weekly carousel
-  const displayFeed = useMemo(() => {
-    if (!newSpot || feed.some((c) => c.id === newSpot.id)) return feed;
-    return [newSpot, ...feed];
-  }, [feed, newSpot]);
+  const displayCars = useMemo(() => {
+    if (!newSpot) return cars;
+    return cars.some((c) => c.id === newSpot.id) ? cars : [newSpot, ...cars];
+  }, [cars, newSpot]);
 
-  const displayWeekly = useMemo(() => {
-    if (!newSpot || weeklySpots.some((c) => c.id === newSpot.id)) return weeklySpots;
-    return [newSpot, ...weeklySpots];
-  }, [weeklySpots, newSpot]);
+  const totalPts = displayCars.reduce((s, c) => s + points(c.rarity), 0);
+  const rareCount = displayCars.filter((c) =>
+    ["Rare", "Very Rare", "Extremely Rare"].includes(c.rarity ?? "")
+  ).length;
+  const extremelyRareCount = displayCars.filter((c) => c.rarity === "Extremely Rare").length;
+  const levelInfo = spotterLevel(totalPts);
 
-  const allNavigable = useMemo(() => {
-    const seen = new Set<string>();
-    const list: SpottedCar[] = [];
-    for (const c of [...displayWeekly.slice(0, 10), ...displayFeed]) {
-      if (!seen.has(c.id)) { seen.add(c.id); list.push(c); }
+  const visibleCars = useMemo(() => {
+    let filtered = displayCars;
+    if (rarityFilter === "Rare+") {
+      filtered = displayCars.filter((c) =>
+        ["Rare", "Very Rare", "Extremely Rare"].includes(c.rarity ?? "")
+      );
+    } else if (rarityFilter === "Extremely Rare") {
+      filtered = displayCars.filter((c) => c.rarity === "Extremely Rare");
     }
-    return list;
-  }, [displayWeekly, displayFeed]);
+    return [...filtered].sort((a, b) => {
+      const rd = (RARITY_ORDER[a.rarity ?? ""] ?? 99) - (RARITY_ORDER[b.rarity ?? ""] ?? 99);
+      if (rd !== 0) return rd;
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
+  }, [displayCars, rarityFilter]);
+
+  const leftCol = visibleCars.filter((_, i) => i % 2 === 0);
+  const rightCol = visibleCars.filter((_, i) => i % 2 === 1);
+
+  if (showMap) {
+    return (
+      <MapView
+        cars={displayCars}
+        onBack={() => setShowMap(false)}
+        onCarSelect={(car) => { setShowMap(false); setSelectedCar(car); }}
+      />
+    );
+  }
 
   if (selectedCar) {
-    const idx = allNavigable.findIndex((c) => c.id === selectedCar.id);
+    const idx = displayCars.findIndex((c) => c.id === selectedCar.id);
     return (
       <CarDetailView
         car={selectedCar}
         onBack={() => setSelectedCar(null)}
-        onNext={idx < allNavigable.length - 1 ? () => setSelectedCar(allNavigable[idx + 1]) : undefined}
-        onPrev={idx > 0 ? () => setSelectedCar(allNavigable[idx - 1]) : undefined}
-        canDelete={!!user && selectedCar.spotterEmail.toLowerCase() === user.email.toLowerCase()}
+        onNext={idx < displayCars.length - 1 ? () => setSelectedCar(displayCars[idx + 1]) : undefined}
+        onPrev={idx > 0 ? () => setSelectedCar(displayCars[idx - 1]) : undefined}
+        canDelete
         onDelete={(id) => {
-          setFeed((prev) => prev.filter((c) => c.id !== id));
-          setWeeklySpots((prev) => prev.filter((c) => c.id !== id));
+          setCars((prev) => prev.filter((c) => c.id !== id));
           setSelectedCar(null);
         }}
       />
@@ -100,159 +154,214 @@ export function HomeTab({ onProfile, newSpot }: { onProfile?: () => void; newSpo
   }
 
   return (
-    <div className="h-full overflow-y-auto scrollbar-hide px-5 pb-24">
-      {/* Header with profile avatar */}
-      <div className="flex items-center justify-between mb-5">
-        <div className="flex flex-col gap-1">
-          <span className="text-[14px] text-text-secondary">{timeGreeting}</span>
-          <span className="text-[28px] font-bold text-text-primary">{firstName} 👋</span>
-        </div>
-        <button onClick={onProfile} className="w-10 h-10 rounded-full bg-accent-coral flex items-center justify-center shrink-0">
-          <span className="text-sm font-bold text-white">{initials}</span>
-        </button>
-      </div>
+    <div className="h-full overflow-y-auto scrollbar-hide">
+      {/* Hidden gallery input */}
+      <input
+        id="home-gallery-input"
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          e.target.value = "";
+          if (f) onAddCar?.(f);
+        }}
+      />
 
-      {/* Latest Spots carousel */}
-      {displayWeekly.length > 0 && (
-        <div className="mb-5">
-          <div className="mb-3">
-            <h2 className="text-[18px] font-semibold text-text-primary">Latest Spots</h2>
-          </div>
-          {/* Carousel breaks out of px-5 to scroll edge-to-edge */}
-          <div className="flex gap-3 overflow-x-auto scrollbar-hide -mx-5 px-5">
-            {displayWeekly.slice(0, 10).map((car) => (
-              <WeeklyCard key={car.id} car={car} onTap={() => setSelectedCar(car)} />
-            ))}
+      <div className="px-5 pt-5 pb-24 flex flex-col gap-4">
+
+        {/* ── Header ── */}
+        <div className="flex items-center justify-between">
+          <span className="text-[26px] font-black tracking-tight text-text-primary" style={{ fontFamily: "var(--font-display)" }}>
+            Spotter
+          </span>
+          <div className="flex items-center gap-2">
+            {user && (
+              <label
+                htmlFor="home-gallery-input"
+                className="w-9 h-9 flex items-center justify-center rounded-full bg-bg-card text-text-muted active:opacity-70 transition-opacity cursor-pointer"
+                aria-label="Add car from library"
+              >
+                <Plus size={17} strokeWidth={2.5} />
+              </label>
+            )}
+            {user && (
+              <button
+                onClick={() => setShowMap(true)}
+                className="w-9 h-9 flex items-center justify-center rounded-full bg-bg-card text-text-muted active:opacity-70 transition-opacity"
+                aria-label="View map"
+              >
+                <Map size={17} strokeWidth={2} />
+              </button>
+            )}
+            <button
+              onClick={onProfile}
+              className="w-9 h-9 flex items-center justify-center rounded-full bg-bg-card text-text-muted active:opacity-70 transition-opacity"
+              aria-label="Notifications"
+            >
+              <Bell size={17} strokeWidth={2} />
+            </button>
+            <button
+              onClick={onProfile}
+              className="w-10 h-10 rounded-full bg-accent-coral flex items-center justify-center shrink-0 active:opacity-80 transition-opacity"
+            >
+              <span className="text-sm font-bold text-white">{user ? initials : "?"}</span>
+            </button>
           </div>
         </div>
-      )}
 
-      {/* Pending Invites OR Invite Friends card */}
-      {user && pendingInvites.length > 0 ? (
-        <div className="mb-5 p-4 bg-accent-coral/10 border border-accent-coral/30 rounded-[16px]">
-          <div className="flex items-center gap-2 mb-3">
-            <Mail size={18} className="text-accent-coral" />
-            <h2 className="text-[16px] font-semibold text-text-primary">
-              {pendingInvites.length === 1 ? "You have a game invite!" : `You have ${pendingInvites.length} game invites!`}
-            </h2>
+        {!user ? (
+          /* ── Logged-out state ── */
+          <div className="flex flex-col items-center py-20 text-center">
+            <div className="w-16 h-16 rounded-full bg-accent-coral/10 flex items-center justify-center mb-4">
+              <Car size={28} className="text-accent-coral" />
+            </div>
+            <p className="text-[18px] font-semibold text-text-primary mb-2">Sign in to see your cars</p>
+            <p className="text-[14px] text-text-secondary mb-6 px-6">
+              Create an account to save spotted cars and track your collection.
+            </p>
+            <button
+              onClick={onLogin}
+              className="flex items-center gap-2 h-[48px] px-8 bg-accent-coral rounded-[24px] text-white font-semibold text-[16px] active:scale-[0.97] transition-transform"
+            >
+              <LogIn size={18} />
+              Sign In
+            </button>
           </div>
-          <div className="flex flex-col gap-2.5">
-            {pendingInvites.map((inv) => (
-              <div key={inv.id} className="flex items-center gap-3 p-3 bg-bg-card rounded-[12px]">
-                <div className="w-9 h-9 rounded-[10px] bg-bg-elevated flex items-center justify-center text-[18px] shrink-0">
-                  {inv.groupIcon}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[14px] font-semibold text-text-primary truncate">{inv.groupName}</p>
-                  <p className="text-[11px] text-text-secondary">from {inv.inviterName}</p>
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => acceptInvite(inv.id).catch(() => {})}
-                    className="h-8 px-3 rounded-[8px] bg-accent-coral flex items-center gap-1"
-                  >
-                    <Check size={14} className="text-white" />
-                    <span className="text-[12px] font-semibold text-white">Join</span>
-                  </button>
-                  <button
-                    onClick={() => declineInvite(inv.id).catch(() => {})}
-                    className="w-8 h-8 rounded-[8px] bg-bg-elevated flex items-center justify-center"
-                  >
-                    <X size={14} className="text-text-muted" />
-                  </button>
+        ) : (
+          <>
+            {/* ── Hero banner ── */}
+            <div
+              className="rounded-[20px] px-4 py-3 flex flex-col gap-2"
+              style={{
+                background: "linear-gradient(135deg, #E85A4F 0%, #C2185B 100%)",
+                boxShadow: "0 8px 24px rgba(232, 90, 79, 0.35)",
+              }}
+            >
+              {/* Top row */}
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-bold tracking-[1.2px] text-white/60 uppercase">
+                  Spotter Rank
+                </span>
+                <span className="text-[15px] font-black text-white bg-white/20 px-3 py-1 rounded-xl">
+                  Level {levelInfo.level}
+                </span>
+              </div>
+
+              {/* Points */}
+              <div className="text-[36px] font-black text-white leading-none">
+                {totalPts.toLocaleString()}
+              </div>
+
+              {/* Bottom row */}
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-[12px] text-white/60">Total Points</span>
+                <div className="flex flex-col items-end gap-1">
+                  {levelInfo.nextMin < Infinity && (
+                    <span className="text-[10px] text-white/50">
+                      {levelInfo.nextMin.toLocaleString()} pts to Level {levelInfo.level + 1}
+                    </span>
+                  )}
+                  <div className="w-[110px] h-[5px] rounded-full bg-white/25 overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-white"
+                      style={{ width: `${Math.round(levelInfo.progress * 100)}%` }}
+                    />
+                  </div>
                 </div>
               </div>
-            ))}
-          </div>
-        </div>
-      ) : user ? (
-        <div className="mb-5">
-          <InviteFriendsCard onTap={() => {
-            if (myGroups.length > 0) setShowGroupPicker(true);
-            else setShowCreateGroup(true);
-          }} />
-        </div>
-      ) : null}
+            </div>
 
-      {/* Community Spots */}
-      <h2 className="text-[18px] font-semibold text-text-primary mb-2">Community Spots</h2>
+            {/* ── Mini stats / filters ── */}
+            <div className="flex gap-2">
+              {([
+                { filter: "All" as RarityFilter,              icon: <Layers size={16} className="shrink-0" />, count: displayCars.length,    label: "Spotted"  },
+                { filter: "Rare+" as RarityFilter,            icon: <Star   size={16} className="shrink-0" />, count: rareCount,              label: "Rare+"    },
+                { filter: "Extremely Rare" as RarityFilter,   icon: <Star   size={16} className="shrink-0" />, count: extremelyRareCount,     label: "Ex. Rare" },
+              ]).map(({ filter, icon, count, label }) => {
+                const active = rarityFilter === filter;
+                return (
+                  <button
+                    key={filter}
+                    onClick={() => setRarityFilter(filter)}
+                    className={`flex-1 flex items-center gap-2.5 rounded-[14px] px-3 py-3 border transition-colors active:opacity-80 ${
+                      active
+                        ? "bg-accent-coral/10 border-accent-coral/40"
+                        : "bg-bg-card border-border-subtle"
+                    }`}
+                  >
+                    <span className={active ? "text-accent-coral" : "text-text-muted"}>{icon}</span>
+                    <div className="flex flex-col gap-0.5 text-left">
+                      <span className={`text-[16px] font-bold leading-none ${active ? "text-accent-coral" : "text-text-primary"}`}>{count}</span>
+                      <span className="text-[10px] text-text-muted">{label}</span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
 
-      {loading ? (
-        <div className="flex justify-center py-12">
-          <div className="w-6 h-6 border-2 border-accent-coral border-t-transparent rounded-full animate-spin" />
-        </div>
-      ) : (
-        <div className="flex flex-col gap-3">
-          {displayFeed.map((car) => (
-            <SpotRow key={car.id} car={car} onTap={() => setSelectedCar(car)} />
-          ))}
-        </div>
-      )}
-
-      {/* Group sheets */}
-      <GroupPickerSheet
-        open={showGroupPicker}
-        onClose={() => setShowGroupPicker(false)}
-        groups={myGroups}
-        onSelectGroup={(group) => {
-          setShowGroupPicker(false);
-          setInviteGroup(group);
-        }}
-        onCreateNew={() => {
-          setShowGroupPicker(false);
-          setShowCreateGroup(true);
-        }}
-      />
-      <CreateGroupSheet
-        open={showCreateGroup}
-        onClose={() => setShowCreateGroup(false)}
-        onCreated={(group) => {
-          setShowCreateGroup(false);
-          setInviteGroup(group);
-        }}
-      />
-      {inviteGroup && (
-        <InviteSheet
-          open={!!inviteGroup}
-          onClose={() => setInviteGroup(null)}
-          group={inviteGroup}
-        />
-      )}
+            {/* ── Car grid ── */}
+            {loading ? (
+              <div className="flex justify-center py-12">
+                <div className="w-6 h-6 border-2 border-accent-coral border-t-transparent rounded-full animate-spin" />
+              </div>
+            ) : visibleCars.length === 0 ? (
+              <div className="flex flex-col items-center py-16 text-center">
+                <div className="text-4xl mb-3">
+                  {rarityFilter !== "All" ? "⭐" : "🚗"}
+                </div>
+                <p className="text-[15px] font-medium text-text-secondary">
+                  {rarityFilter !== "All" ? `No ${rarityFilter} cars yet` : "No cars spotted yet"}
+                </p>
+                <p className="text-[12px] text-text-muted mt-1">
+                  {rarityFilter !== "All"
+                    ? "Keep spotting to find them!"
+                    : "Use the Spot tab to identify your first car!"}
+                </p>
+              </div>
+            ) : (
+              <div className="flex gap-3 items-start overflow-hidden">
+                <div className="flex-1 min-w-0 flex flex-col gap-3">
+                  {leftCol.map((car) => (
+                    <CarCard key={car.id} car={car} onTap={() => setSelectedCar(car)} />
+                  ))}
+                </div>
+                <div className="flex-1 min-w-0 flex flex-col gap-3">
+                  {rightCol.map((car) => (
+                    <CarCard key={car.id} car={car} onTap={() => setSelectedCar(car)} />
+                  ))}
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </div>
     </div>
   );
 }
 
-function WeeklyCard({ car, onTap }: { car: SpottedCar; onTap: () => void }) {
+function CarCard({ car, onTap }: { car: SpottedCar; onTap: () => void }) {
   const displayName = [car.year, car.make, car.model].filter(Boolean).join(" ");
-  const rarityLabel = car.rarity ? `${car.rarity} · ${points(car.rarity)} pts` : null;
-  const rarityColor = car.rarity ? `text-rarity-${car.rarity.toLowerCase().replace(/\s+/g, "-")}` : "";
+  const date = car.spottedAt ?? car.createdAt;
   return (
-    <button onClick={onTap} className="shrink-0 w-[150px] rounded-[16px] bg-bg-card overflow-hidden flex flex-col text-left">
+    <button
+      onClick={onTap}
+      className="rounded-[16px] bg-bg-card overflow-hidden text-left border border-border-subtle active:opacity-75 transition-opacity"
+    >
       {car.imageUrl ? (
-        <img src={car.imageUrl} alt={displayName} className="w-full h-[100px] object-cover shrink-0" />
+        <img src={car.imageUrl} alt={displayName} className="w-full h-[90px] object-cover" />
       ) : (
-        <div className="w-full h-[100px] bg-bg-elevated flex items-center justify-center text-text-tertiary text-xs shrink-0">No photo</div>
+        <div className="w-full h-[90px] bg-bg-elevated" />
       )}
-      <div className="flex flex-col gap-0.5 px-3 py-2">
-        <p className="text-[13px] font-semibold text-text-primary truncate">{displayName}</p>
-        {rarityLabel && <span className={`text-[11px] ${rarityColor}`}>{rarityLabel}</span>}
-      </div>
-    </button>
-  );
-}
-
-function SpotRow({ car, onTap }: { car: SpottedCar; onTap: () => void }) {
-  const displayName = [car.year, car.make, car.model].filter(Boolean).join(" ");
-  return (
-    <button onClick={onTap} className="flex items-center gap-3 p-3 bg-bg-card rounded-[12px] w-full text-left">
-      {car.imageUrl ? (
-        <img src={car.imageUrl} alt="" className="w-14 h-14 rounded-[8px] object-cover shrink-0" />
-      ) : (
-        <div className="w-14 h-14 rounded-[8px] bg-bg-elevated shrink-0" />
-      )}
-      <div className="flex-1 min-w-0">
-        <p className="text-[14px] font-semibold text-text-primary truncate">{displayName}</p>
-        <p className="text-[12px] text-text-secondary mt-0.5">Spotted by {car.spotterName || car.spotterEmail.split("@")[0]} · {relativeTime(car.createdAt)}</p>
+      <div className="px-3 py-2.5 flex flex-col gap-1.5">
+        <p className="text-[12px] font-semibold text-text-primary truncate">{displayName}</p>
+        {car.rarity && (
+          <div className="flex items-center gap-1.5">
+            <span className={`w-[6px] h-[6px] rounded-full shrink-0 ${rarityDotClass(car.rarity)}`} />
+            <span className={`text-[10px] truncate ${rarityTextClass(car.rarity)}`}>{car.rarity}</span>
+          </div>
+        )}
+        <p className="text-[10px] text-text-muted">{relativeTime(date)}</p>
       </div>
     </button>
   );

@@ -60,11 +60,32 @@ export function clearPendingSpot() {
 export const CAMERA_INPUT_ID = "spot-camera-input";
 const GALLERY_INPUT_ID = "spot-gallery-input";
 
+function captureLocation(): Promise<{ lat: number; lng: number } | null> {
+  return new Promise((resolve) => {
+    // JS-level fallback: WKWebView may not fire the error callback while a
+    // permission dialog is pending, so the geolocation `timeout` option alone
+    // is not reliable on iOS. Resolve null after 10 s no matter what.
+    const fallback = setTimeout(() => resolve(null), 10_000);
+    const done = (val: { lat: number; lng: number } | null) => {
+      clearTimeout(fallback);
+      resolve(val);
+    };
+
+    if (!navigator.geolocation) { done(null); return; }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => done({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      () => done(null),
+      { timeout: 8000, maximumAge: 30000, enableHighAccuracy: true },
+    );
+  });
+}
+
 export function SpotTab({ active, triggerFile, onTriggerFileConsumed, onSaved, onClose, onLogin, onSignUp }: { active: boolean; triggerFile?: File | null; onTriggerFileConsumed?: () => void; onSaved: (spot: SpottedCar) => void; onClose: () => void; onLogin: () => void; onSignUp: () => void }) {
   const { user } = useAuth();
   const cameraRef = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [result, setResult] = useState<IdentifyResult | null>(null);
+  const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [saved, setSaved] = useState<SpottedCar | null>(null);
   const [identifying, setIdentifying] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -80,22 +101,31 @@ export function SpotTab({ active, triggerFile, onTriggerFileConsumed, onSaved, o
   }, [triggerFile, active]);
 
   const handleFile = async (f: File) => {
-    // Clear previous result so camera view shows while identifying
     setPreview(URL.createObjectURL(f));
     setResult(null);
     setSaved(null);
     setError(null);
+    setLocation(null);
     setIdentifying(true);
     try {
-      const compressed = await compressImage(f);
-      const res = await spotter.identify(compressed);
-      setResult(res);
+      // Capture location and identify in parallel
+      const [loc, compressed] = await Promise.all([
+        captureLocation(),
+        compressImage(f),
+      ]);
+      setLocation(loc);
+      const identifyTimeout = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("Identification timed out. Please try again.")), 60_000)
+      );
+      const res = await Promise.race([spotter.identify(compressed), identifyTimeout]);
+      setResult({ ...res, lat: loc?.lat, lng: loc?.lng });
     } catch (e: unknown) {
       const raw = e instanceof Error ? e.message : "";
       const cleaned = raw.replace(/^ERROR:\s*/i, "").replace(/^Error:\s*/i, "").trim();
       setError(cleaned || "We couldn't identify this car. Try a clearer photo.");
+    } finally {
+      setIdentifying(false);
     }
-    setIdentifying(false);
   };
 
   const handleSave = async () => {
@@ -115,6 +145,8 @@ export function SpotTab({ active, triggerFile, onTriggerFileConsumed, onSaved, o
         bhp: result.bhp,
         zeroToSixty: result.zeroToSixty,
         topSpeed: result.topSpeed,
+        lat: location?.lat,
+        lng: location?.lng,
       });
       setSaved(spot);
       onSaved(spot); // pass spot to parent so CarsTab shows it immediately
@@ -130,6 +162,7 @@ export function SpotTab({ active, triggerFile, onTriggerFileConsumed, onSaved, o
     setResult(null);
     setSaved(null);
     setError(null);
+    setLocation(null);
   };
 
   const displayName = result ? [result.year, result.make, result.model].filter(Boolean).join(" ") : "";
@@ -192,9 +225,9 @@ export function SpotTab({ active, triggerFile, onTriggerFileConsumed, onSaved, o
                 <h3 className="text-[16px] font-semibold text-text-primary mb-3">Specifications</h3>
                 <div className="grid grid-cols-2 gap-3">
                   {result.type && <SpecCell label="Type" value={result.type} />}
-                  {result.bhp && <SpecCell label="Horsepower" value={`${result.bhp} hp`} />}
-                  {result.zeroToSixty && <SpecCell label="0-60 mph" value={`${result.zeroToSixty} seconds`} />}
-                  {result.topSpeed && <SpecCell label="Top Speed" value={`${result.topSpeed} mph`} />}
+                  {result.bhp && <SpecCell label="Horsepower" value={result.bhp} />}
+                  {result.zeroToSixty && <SpecCell label="0-60 mph" value={result.zeroToSixty} />}
+                  {result.topSpeed && <SpecCell label="Top Speed" value={result.topSpeed} />}
                   {result.marketValue && <SpecCell label="Market Value" value={result.marketValue} />}
                 </div>
               </div>

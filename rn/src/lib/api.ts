@@ -200,6 +200,8 @@ export interface SpottedCar {
   topSpeed?: string;
   spottedAt?: string;
   createdAt: string;
+  lat?: number;
+  lng?: number;
 }
 
 export interface IdentifyResult {
@@ -215,6 +217,8 @@ export interface IdentifyResult {
   bhp?: string;
   zeroToSixty?: string;
   topSpeed?: string;
+  lat?: number;
+  lng?: number;
 }
 
 // Compress an image to stay under maxBytes using canvas
@@ -246,24 +250,22 @@ async function compressImage(file: File, maxBytes: number): Promise<File> {
 
 export const spotter = {
   identify: async (file: File): Promise<IdentifyResult> => {
-    // Compress to ≤4 MB to stay under Vercel's 4.5 MB serverless body limit
-    const compressed = await compressImage(file, 4 * 1024 * 1024);
+    // Compress to ≤3 MB — base64 encoding adds ~33% overhead, keeping JSON body under 4.5 MB
+    // Also avoids CapacitorHttp's known issues with FormData + binary File objects
+    const compressed = await compressImage(file, 3 * 1024 * 1024);
 
-    // Upload directly to Vercel Blob from the browser (bypasses serverless size limit)
-    const { upload } = await import("@vercel/blob/client");
-    const ext = (compressed.name.split(".").pop() ?? "jpg").toLowerCase();
-    const blob = await upload(
-      `spotter/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`,
-      compressed,
-      { access: "public", handleUploadUrl: `${BASE_URL}/api/spotter/upload` }
-    );
+    const imageBase64 = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = () => reject(new Error("Failed to read image"));
+      reader.readAsDataURL(compressed);
+    });
 
-    // Send the Blob URL to the identify endpoint (JSON, not file — no size limit)
     const res = await fetch(`${BASE_URL}/api/ai/identify`, {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ imageUrl: blob.url }),
+      body: JSON.stringify({ imageBase64 }),
     });
     if (!res.ok) {
       const text = await res.text().catch(() => "");
@@ -277,7 +279,7 @@ export const spotter = {
     }
     return res.json();
   },
-  save: (data: Omit<IdentifyResult, "confidence"> & { confidence: number; spottedAt?: string }) =>
+  save: (data: Omit<IdentifyResult, "confidence"> & { confidence: number; spottedAt?: string; lat?: number; lng?: number }) =>
     request<SpottedCar>("/api/spotter", {
       method: "POST",
       body: JSON.stringify(data),
@@ -290,4 +292,20 @@ export const spotter = {
     }>("/api/spotter/weekly"),
   delete: (id: string) =>
     request<{ ok: boolean }>(`/api/spotter/${id}`, { method: "DELETE" }),
+};
+
+// ── Push notifications ──
+export const push = {
+  /** Register a Web Push subscription. Server stores it and uses it to send
+   *  notifications only to members of shared Games. */
+  registerSubscription: (subscription: PushSubscriptionJSON) =>
+    request<{ ok: boolean }>("/api/push/subscribe", {
+      method: "POST",
+      body: JSON.stringify({ subscription }),
+    }),
+  unregisterSubscription: (endpoint: string) =>
+    request<{ ok: boolean }>("/api/push/unsubscribe", {
+      method: "POST",
+      body: JSON.stringify({ endpoint }),
+    }),
 };

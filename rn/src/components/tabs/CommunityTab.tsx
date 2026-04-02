@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
-import { ArrowRight, Check, X, Mail } from "lucide-react";
+import { ArrowRight, Check, X, Mail, Map } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useGroups } from "@/lib/groups-context";
 import { spotter, type SpottedCar } from "@/lib/api";
@@ -9,6 +9,7 @@ import { points } from "@/lib/rarity";
 import { relativeTime } from "@/lib/time";
 import { RarityBadge } from "@/components/ui";
 import { CarDetailView } from "@/components/CarDetailView";
+import { MapView } from "@/components/MapView";
 
 const RARE_TIERS = ["Rare", "Very Rare", "Extremely Rare"];
 
@@ -18,6 +19,7 @@ export function CommunityTab({ onProfile }: { onProfile?: () => void }) {
   const [allSpots, setAllSpots] = useState<SpottedCar[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCar, setSelectedCar] = useState<SpottedCar | null>(null);
+  const [showMap, setShowMap] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -58,6 +60,16 @@ export function CommunityTab({ onProfile }: { onProfile?: () => void }) {
     return list;
   }, [topRare, recentActivity]);
 
+  if (showMap) {
+    return (
+      <MapView
+        cars={allSpots}
+        onBack={() => setShowMap(false)}
+        onCarSelect={(car) => { setShowMap(false); setSelectedCar(car); }}
+      />
+    );
+  }
+
   if (selectedCar) {
     const idx = allNavigable.findIndex((c) => c.id === selectedCar.id);
     return (
@@ -80,9 +92,18 @@ export function CommunityTab({ onProfile }: { onProfile?: () => void }) {
       {/* Header */}
       <div className="flex items-center justify-between mb-5">
         <h1 className="text-[28px] font-bold text-text-primary">Community</h1>
-        <button onClick={onProfile} className="w-10 h-10 rounded-full bg-accent-coral flex items-center justify-center shrink-0">
-          <span className="text-[14px] font-bold text-white">{initials}</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowMap(true)}
+            className="w-9 h-9 flex items-center justify-center rounded-full bg-bg-card text-text-muted active:opacity-70 transition-opacity"
+            aria-label="View map"
+          >
+            <Map size={17} strokeWidth={2} />
+          </button>
+          <button onClick={onProfile} className="w-10 h-10 rounded-full bg-accent-coral flex items-center justify-center shrink-0">
+            <span className="text-[14px] font-bold text-white">{initials}</span>
+          </button>
+        </div>
       </div>
 
       {/* Pending Invites Banner */}
