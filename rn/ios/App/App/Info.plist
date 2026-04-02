@@ -26,6 +26,8 @@
 	<true/>
 	<key>NSCameraUsageDescription</key>
 	<string>Spotter needs camera access to photograph and identify cars.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Spotter uses your location to tag where you spotted a car.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Spotter needs photo library access to select car photos for identification.</string>
 	<key>UILaunchStoryboardName</key>
