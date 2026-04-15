@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Image as ImageIcon, ArrowLeft, Check, Zap, RotateCcw, X, LogIn } from "lucide-react";
-import { Geolocation } from "@capacitor/geolocation";
 import { spotter, type IdentifyResult, type SpottedCar } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { points } from "@/lib/rarity";
@@ -63,13 +62,20 @@ const GALLERY_INPUT_ID = "spot-gallery-input";
 
 async function captureLocation(): Promise<{ lat: number; lng: number } | null> {
   try {
-    // Request permission first — this triggers the native iOS prompt via Capacitor
-    const perm = await Geolocation.requestPermissions();
-    if (perm.location !== "granted") return null;
-    const pos = await Geolocation.getCurrentPosition({
-      enableHighAccuracy: true,
-      timeout: 8000,
-    });
+    // Try Capacitor geolocation first (native app)
+    const { Geolocation } = await import("@capacitor/geolocation").catch(() => ({ Geolocation: null }));
+    if (Geolocation) {
+      const perm = await Geolocation.requestPermissions();
+      if (perm.location !== "granted") return null;
+      const pos = await Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 8000 });
+      return { lat: pos.coords.latitude, lng: pos.coords.longitude };
+    }
+
+    // Fall back to browser Geolocation API
+    if (!("geolocation" in navigator)) return null;
+    const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
+      navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 8000 })
+    );
     return { lat: pos.coords.latitude, lng: pos.coords.longitude };
   } catch {
     return null;
@@ -190,13 +196,12 @@ export function SpotTab({ active, triggerFile, onTriggerFileConsumed, onSaved, o
           <>
             {/* Nav bar — label triggers camera natively on iOS */}
             <div className="flex items-center justify-between mb-4">
-              <label
-                htmlFor={CAMERA_INPUT_ID}
-                onClick={clearState}
+              <button
+                onClick={() => { clearState(); onClose(); }}
                 className="text-text-primary cursor-pointer p-1"
               >
                 <ArrowLeft size={24} />
-              </label>
+              </button>
               <span className="text-[18px] font-semibold text-text-primary">Identification</span>
               <div className="w-6" />
             </div>

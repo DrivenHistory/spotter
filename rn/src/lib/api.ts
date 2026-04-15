@@ -1,5 +1,8 @@
 const BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL ?? "https://www.drivenhistory.com";
+  process.env.NEXT_PUBLIC_API_URL ??
+  (typeof window !== "undefined" && (window as /* eslint-disable-line @typescript-eslint/no-explicit-any */ any).Capacitor
+    ? "https://www.drivenhistory.com"
+    : "");
 
 export class APIError extends Error {
   constructor(public status: number, message: string) {
