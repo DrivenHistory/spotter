@@ -1,13 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { Bell, Car, Layers, LogIn, Map, Plus, Star } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Bell, Car, Gem, Layers, Lock, LogIn, Map, Medal, Plus, Trophy } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { spotter, user as userApi, type SpottedCar } from "@/lib/api";
 import { points, spotterLevel } from "@/lib/rarity";
 import { relativeTime } from "@/lib/time";
 import { CarDetailView } from "@/components/CarDetailView";
 import { MapView } from "@/components/MapView";
+import { cacheGet, cacheSet, cacheClear } from "@/lib/cache";
 
 const RARITY_ORDER: Record<string, number> = {
   "Extremely Rare": 0,
@@ -17,7 +18,6 @@ const RARITY_ORDER: Record<string, number> = {
   Common: 4,
 };
 
-type RarityFilter = "All" | "Rare+" | "Extremely Rare";
 
 function rarityTextClass(rarity?: string): string {
   switch (rarity) {
@@ -57,13 +57,7 @@ export function HomeTab({
   const [loading, setLoading] = useState(true);
   const [selectedCar, setSelectedCar] = useState<SpottedCar | null>(null);
   const [showMap, setShowMap] = useState(false);
-  const [rarityFilter, setRarityFilter] = useState<RarityFilter>("All");
   const [dbDisplayName, setDbDisplayName] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!active) return;
-    setRarityFilter("All");
-  }, [active]);
 
   useEffect(() => {
     if (!user) return;
@@ -85,11 +79,20 @@ export function HomeTab({
 
   useEffect(() => {
     if (!user || !active) return;
-    setLoading(true);
+    const cacheKey = `feed_${user.email}`;
+    const cached = cacheGet<SpottedCar[]>(cacheKey);
+    if (cached) {
+      setCars(cached);
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
     (async () => {
       try {
         const { spots } = await spotter.getFeed();
-        setCars(spots.filter((s) => s.spotterEmail.toLowerCase() === user.email.toLowerCase()));
+        const mine = spots.filter((s) => s.spotterEmail.toLowerCase() === user.email.toLowerCase());
+        setCars(mine);
+        cacheSet(cacheKey, mine);
       } catch { /* ignore */ }
       setLoading(false);
     })();
@@ -101,27 +104,44 @@ export function HomeTab({
   }, [cars, newSpot]);
 
   const totalPts = displayCars.reduce((s, c) => s + points(c.rarity), 0);
-  const rareCount = displayCars.filter((c) =>
-    ["Rare", "Very Rare", "Extremely Rare"].includes(c.rarity ?? "")
-  ).length;
+  const rareOnlyCount = displayCars.filter((c) => c.rarity === "Rare").length;
+  const veryRareCount = displayCars.filter((c) => c.rarity === "Very Rare").length;
   const extremelyRareCount = displayCars.filter((c) => c.rarity === "Extremely Rare").length;
   const levelInfo = spotterLevel(totalPts);
 
-  const visibleCars = useMemo(() => {
-    let filtered = displayCars;
-    if (rarityFilter === "Rare+") {
-      filtered = displayCars.filter((c) =>
-        ["Rare", "Very Rare", "Extremely Rare"].includes(c.rarity ?? "")
-      );
-    } else if (rarityFilter === "Extremely Rare") {
-      filtered = displayCars.filter((c) => c.rarity === "Extremely Rare");
+  // ── Level-up detection ──
+  const [levelUpInfo, setLevelUpInfo] = useState<{ from: number; to: number } | null>(null);
+  const prevLevelRef = useRef<number | null>(null);
+
+  // Capture baseline level once initial load completes (no animation)
+  useEffect(() => {
+    if (!loading && prevLevelRef.current === null) {
+      prevLevelRef.current = levelInfo.level;
     }
-    return [...filtered].sort((a, b) => {
+  }, [loading, levelInfo.level]);
+
+  // Detect level-up whenever a new spot arrives
+  useEffect(() => {
+    if (!newSpot || prevLevelRef.current === null) return;
+    const newLevel = spotterLevel(totalPts).level;
+    if (newLevel > prevLevelRef.current) {
+      setLevelUpInfo({ from: prevLevelRef.current, to: newLevel });
+      prevLevelRef.current = newLevel;
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [newSpot]);
+
+  const hasRare = displayCars.some((c) => ["Rare", "Very Rare", "Extremely Rare"].includes(c.rarity ?? ""));
+  const hasVeryRare = displayCars.some((c) => ["Very Rare", "Extremely Rare"].includes(c.rarity ?? ""));
+  const hasExtremelyRare = displayCars.some((c) => c.rarity === "Extremely Rare");
+
+  const visibleCars = useMemo(() => {
+    return [...displayCars].sort((a, b) => {
       const rd = (RARITY_ORDER[a.rarity ?? ""] ?? 99) - (RARITY_ORDER[b.rarity ?? ""] ?? 99);
       if (rd !== 0) return rd;
       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     });
-  }, [displayCars, rarityFilter]);
+  }, [displayCars]);
 
   const leftCol = visibleCars.filter((_, i) => i % 2 === 0);
   const rightCol = visibleCars.filter((_, i) => i % 2 === 1);
@@ -146,7 +166,11 @@ export function HomeTab({
         onPrev={idx > 0 ? () => setSelectedCar(displayCars[idx - 1]) : undefined}
         canDelete
         onDelete={(id) => {
-          setCars((prev) => prev.filter((c) => c.id !== id));
+          setCars((prev) => {
+            const next = prev.filter((c) => c.id !== id);
+            if (user) cacheSet(`feed_${user.email}`, next);
+            return next;
+          });
           setSelectedCar(null);
         }}
       />
@@ -154,7 +178,7 @@ export function HomeTab({
   }
 
   return (
-    <div className="h-full overflow-y-auto scrollbar-hide">
+    <div className="h-full overflow-y-auto scrollbar-hide relative">
       {/* Hidden gallery input */}
       <input
         id="home-gallery-input"
@@ -232,72 +256,69 @@ export function HomeTab({
           <>
             {/* ── Hero banner ── */}
             <div
-              className="rounded-[20px] px-4 py-3 flex flex-col gap-2"
+              className="rounded-[20px] px-[18px] py-[14px] flex flex-col gap-[10px]"
               style={{
                 background: "linear-gradient(135deg, #E85A4F 0%, #C2185B 100%)",
                 boxShadow: "0 8px 24px rgba(232, 90, 79, 0.35)",
               }}
             >
               {/* Top row */}
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-bold tracking-[1.2px] text-white/60 uppercase">
-                  Spotter Rank
-                </span>
-                <span className="text-[15px] font-black text-white bg-white/20 px-3 py-1 rounded-xl">
-                  Level {levelInfo.level}
-                </span>
-              </div>
-
-              {/* Points */}
-              <div className="text-[36px] font-black text-white leading-none">
-                {totalPts.toLocaleString()}
-              </div>
-
-              {/* Bottom row */}
-              <div className="flex items-center justify-between gap-4">
-                <span className="text-[12px] text-white/60">Total Points</span>
-                <div className="flex flex-col items-end gap-1">
-                  {levelInfo.nextMin < Infinity && (
-                    <span className="text-[10px] text-white/50">
-                      {levelInfo.nextMin.toLocaleString()} pts to Level {levelInfo.level + 1}
-                    </span>
-                  )}
-                  <div className="w-[110px] h-[5px] rounded-full bg-white/25 overflow-hidden">
-                    <div
-                      className="h-full rounded-full bg-white"
-                      style={{ width: `${Math.round(levelInfo.progress * 100)}%` }}
-                    />
-                  </div>
+              <div className="flex items-end justify-between">
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-[24px] font-black text-white leading-none">
+                    Level {levelInfo.level}
+                  </span>
+                  <span className="text-[11px] text-white/75">Car Spotter</span>
+                </div>
+                <div className="flex flex-col items-end">
+                  <span className="text-[9px] font-bold tracking-[1px] text-white/70 uppercase">Points</span>
+                  <span className="text-[28px] font-black text-white leading-none">
+                    {totalPts.toLocaleString()}
+                  </span>
                 </div>
               </div>
-            </div>
 
-            {/* ── Mini stats / filters ── */}
-            <div className="flex gap-2">
-              {([
-                { filter: "All" as RarityFilter,              icon: <Layers size={16} className="shrink-0" />, count: displayCars.length,    label: "Spotted"  },
-                { filter: "Rare+" as RarityFilter,            icon: <Star   size={16} className="shrink-0" />, count: rareCount,              label: "Rare+"    },
-                { filter: "Extremely Rare" as RarityFilter,   icon: <Star   size={16} className="shrink-0" />, count: extremelyRareCount,     label: "Ex. Rare" },
-              ]).map(({ filter, icon, count, label }) => {
-                const active = rarityFilter === filter;
-                return (
-                  <button
-                    key={filter}
-                    onClick={() => setRarityFilter(filter)}
-                    className={`flex-1 flex items-center gap-2.5 rounded-[14px] px-3 py-3 border transition-colors active:opacity-80 ${
-                      active
-                        ? "bg-accent-coral/10 border-accent-coral/40"
-                        : "bg-bg-card border-border-subtle"
-                    }`}
-                  >
-                    <span className={active ? "text-accent-coral" : "text-text-muted"}>{icon}</span>
-                    <div className="flex flex-col gap-0.5 text-left">
-                      <span className={`text-[16px] font-bold leading-none ${active ? "text-accent-coral" : "text-text-primary"}`}>{count}</span>
-                      <span className="text-[10px] text-text-muted">{label}</span>
+              {/* Progress bar */}
+              <div className="w-full h-[4px] rounded-full bg-black/20 overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-white"
+                  style={{ width: `${Math.round(levelInfo.progress * 100)}%` }}
+                />
+              </div>
+
+              {/* Divider + achievements label */}
+              <div className="w-full h-px bg-white/20" />
+              <span className="text-[9px] font-bold tracking-[1.2px] text-white/60 uppercase">Achievements</span>
+
+              {/* 4-column badge row */}
+              <div className="flex rounded-[14px] bg-black/20 overflow-hidden">
+                {([
+                  { icon: <Medal size={18} />,  iconColor: "#F5A623", label: "Rare",      count: rareOnlyCount,       earned: hasRare          },
+                  { icon: <Trophy size={18} />, iconColor: "#D0D0D0", label: "Very Rare", count: veryRareCount,       earned: hasVeryRare      },
+                  { icon: <Gem size={18} />,    iconColor: "#FFFFFF", label: "Ex. Rare",  count: extremelyRareCount,  earned: hasExtremelyRare },
+                  { icon: <Layers size={18} />, iconColor: "#FFFFFF", label: "Total",     count: displayCars.length,  earned: true             },
+                ] as const).map(({ icon, iconColor, label, count, earned }, i, arr) => (
+                  <div key={label} className="flex flex-1">
+                    <div
+                      className="flex-1 flex flex-col items-center justify-center gap-[5px] py-[10px]"
+                      style={{ opacity: earned ? 1 : 0.35 }}
+                    >
+                      <span style={{ color: earned ? iconColor : "#FFFFFF" }}>
+                        {earned ? icon : <Lock size={18} />}
+                      </span>
+                      <span className="text-[10px] font-semibold text-white/70 tracking-[0.3px] text-center leading-tight">
+                        {label}
+                      </span>
+                      <span className="text-[20px] font-black text-white leading-none">
+                        {earned ? count : "—"}
+                      </span>
                     </div>
-                  </button>
-                );
-              })}
+                    {i < arr.length - 1 && (
+                      <div className="w-px bg-white/15 self-stretch" />
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
 
             {/* ── Car grid ── */}
@@ -307,16 +328,10 @@ export function HomeTab({
               </div>
             ) : visibleCars.length === 0 ? (
               <div className="flex flex-col items-center py-16 text-center">
-                <div className="text-4xl mb-3">
-                  {rarityFilter !== "All" ? "⭐" : "🚗"}
-                </div>
-                <p className="text-[15px] font-medium text-text-secondary">
-                  {rarityFilter !== "All" ? `No ${rarityFilter} cars yet` : "No cars spotted yet"}
-                </p>
+                <div className="text-4xl mb-3">🚗</div>
+                <p className="text-[15px] font-medium text-text-secondary">No cars spotted yet</p>
                 <p className="text-[12px] text-text-muted mt-1">
-                  {rarityFilter !== "All"
-                    ? "Keep spotting to find them!"
-                    : "Use the Spot tab to identify your first car!"}
+                  Use the Spot tab to identify your first car!
                 </p>
               </div>
             ) : (
@@ -335,6 +350,90 @@ export function HomeTab({
             )}
           </>
         )}
+      </div>
+
+      {levelUpInfo && (
+        <LevelUpOverlay
+          from={levelUpInfo.from}
+          to={levelUpInfo.to}
+          onDismiss={() => setLevelUpInfo(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+function LevelUpOverlay({ from, to, onDismiss }: { from: number; to: number; onDismiss: () => void }) {
+  useEffect(() => {
+    const t = setTimeout(onDismiss, 4000);
+    return () => clearTimeout(t);
+  }, [onDismiss]);
+
+  const levelsGained = to - from;
+  const particles = ["⭐", "✨", "🌟", "⭐", "✨", "🌟"];
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center"
+      style={{ background: "rgba(8,8,10,0.88)", animation: "lvlFadeIn 0.25s ease forwards" }}
+      onClick={onDismiss}
+    >
+      {/* Floating particles */}
+      {particles.map((emoji, i) => (
+        <span
+          key={i}
+          className="absolute text-[22px] pointer-events-none select-none"
+          style={{
+            left: `${8 + i * 16}%`,
+            bottom: "20%",
+            animation: `lvlParticle 2.4s ${i * 0.18}s ease-out forwards`,
+            opacity: 0,
+          }}
+        >
+          {emoji}
+        </span>
+      ))}
+
+      {/* Card */}
+      <div
+        className="flex flex-col items-center gap-3 text-center px-10"
+        style={{ animation: "lvlCardIn 0.45s cubic-bezier(0.34,1.56,0.64,1) forwards" }}
+      >
+        {/* Badge */}
+        <div className="px-4 py-1 rounded-full bg-accent-coral/20 border border-accent-coral/40">
+          <span className="text-[11px] font-bold tracking-[3px] uppercase text-accent-coral">
+            Level Up!
+          </span>
+        </div>
+
+        {/* Level number */}
+        <div
+          className="text-[100px] font-black leading-none"
+          style={{
+            fontFamily: "var(--font-display)",
+            animation: "lvlNumIn 0.4s 0.18s cubic-bezier(0.34,1.56,0.64,1) both",
+            background: "linear-gradient(135deg, #ffffff 30%, #E85A4F 100%)",
+            backgroundSize: "200% auto",
+            WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent",
+          }}
+        >
+          {to}
+        </div>
+
+        <p className="text-[16px] font-semibold text-text-secondary">
+          {levelsGained > 1 ? `${levelsGained} levels gained!` : "New level reached"}
+        </p>
+
+        {/* Auto-dismiss progress bar */}
+        <div className="w-28 h-[3px] rounded-full bg-white/15 overflow-hidden mt-1">
+          <div
+            className="h-full bg-accent-coral rounded-full"
+            style={{ animation: "lvlDismiss 4s linear forwards" }}
+          />
+        </div>
+
+        <p className="text-[11px] text-text-muted">Tap to continue</p>
       </div>
     </div>
   );

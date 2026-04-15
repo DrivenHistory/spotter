@@ -1,7 +1,6 @@
-// Points per rarity tier — designed so:
-//   10 Common spots  = 1 level
-//   1 Very Rare      = 1 level jump
-//   1 Extremely Rare = 2 level jumps
+// Points per rarity tier:
+//   Very Rare (10 pts)      = +1 level in early tiers
+//   Extremely Rare (20 pts) = +2 levels in early tiers
 export const RARITY_POINTS: Record<string, number> = {
   Common: 1,
   Uncommon: 2,
@@ -10,12 +9,29 @@ export const RARITY_POINTS: Record<string, number> = {
   "Extremely Rare": 20,
 };
 
-// Equal 10-pt gaps so the above guarantees hold at every level
-const LEVEL_GAP = 10;
-const LEVELS = Array.from({ length: 10 }, (_, i) => ({
-  level: i + 1,
-  min: i * LEVEL_GAP,
-}));
+// 100-level tiered system — gaps widen as you progress:
+//   Levels  1–25: gap=10   (Very Rare = exact level up)
+//   Levels 26–50: gap=20   (Extremely Rare = exact level up)
+//   Levels 51–75: gap=50   (big rares = meaningful boost)
+//   Levels 76–100: gap=100 (prestige territory)
+const TIERS = [
+  { count: 25, gap: 10  },
+  { count: 25, gap: 20  },
+  { count: 25, gap: 50  },
+  { count: 25, gap: 100 },
+];
+
+const LEVELS: { level: number; min: number }[] = [];
+{
+  let levelNum = 1;
+  let minPts = 0;
+  for (const { count, gap } of TIERS) {
+    for (let i = 0; i < count; i++) {
+      LEVELS.push({ level: levelNum++, min: minPts });
+      minPts += gap;
+    }
+  }
+}
 
 export function spotterLevel(totalPoints: number): {
   level: number;

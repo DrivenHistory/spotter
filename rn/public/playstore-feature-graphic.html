@@ -2,388 +2,683 @@
 <html>
 <head>
 <meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body {
-    width: 1024px;
-    height: 500px;
-    overflow: hidden;
-    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', sans-serif;
-  }
-  .container {
-    width: 1024px;
-    height: 500px;
-    background: #0B0B0E;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    position: relative;
-    overflow: hidden;
-  }
+@font-face {
+  font-family: "Fraunces";
+  font-style: normal;
+  font-weight: 100 900;
+  src: url("https://fonts.gstatic.com/s/fraunces/v31/6NUh8FyLNQOQZAnv9bYEvDiIdE9Ea92uemAk_WBq8U_9v0c2Wa0K7iN7hzFUPJH58nk.woff2") format("woff2");
+}
+@font-face {
+  font-family: "DM Sans";
+  font-style: normal;
+  font-weight: 100 900;
+  src: url("https://fonts.gstatic.com/s/dmsans/v15/rP2tp2ywxg089UriI5-g4vlH9VoD8CmcqZG40F9JadbnoEwAop1hTmf3ZGMZpg.woff2") format("woff2");
+}
 
-  /* Subtle radial glow behind logo */
-  .glow {
-    position: absolute;
-    width: 500px;
-    height: 500px;
-    left: 50%;
-    top: 50%;
-    transform: translate(-50%, -50%);
-    background: radial-gradient(circle, rgba(232, 90, 79, 0.12) 0%, transparent 65%);
-    pointer-events: none;
-  }
+* { margin: 0; padding: 0; box-sizing: border-box; }
 
-  /* Left side: logo + text */
-  .left {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    z-index: 2;
-    margin-right: 80px;
-  }
+body {
+  width: 1024px;
+  height: 500px;
+  overflow: hidden;
+  font-family: "DM Sans", system-ui, sans-serif;
+  background: #0B0B0E;
+}
 
-  .logo-circle {
-    width: 140px;
-    height: 140px;
-    background: #E85A4F;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    position: relative;
-    box-shadow: 0 8px 40px rgba(232, 90, 79, 0.3);
-  }
+.canvas {
+  width: 1024px;
+  height: 500px;
+  background: #0B0B0E;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+}
 
-  .logo-circle svg {
-    width: 78px;
-    height: 78px;
-  }
+/* ── Background layers ── */
+.bg-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
 
-  .app-name {
-    margin-top: 24px;
-    font-size: 48px;
-    font-weight: 600;
-    letter-spacing: 12px;
-    color: #FFFFFF;
-  }
+.bg-glow-left {
+  position: absolute;
+  width: 600px;
+  height: 600px;
+  left: -80px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: radial-gradient(circle, rgba(232,90,79,0.14) 0%, transparent 65%);
+  pointer-events: none;
+}
 
-  .tagline {
-    margin-top: 8px;
-    font-size: 18px;
-    color: rgba(255,255,255,0.55);
-    letter-spacing: 2px;
-  }
+.bg-glow-right {
+  position: absolute;
+  width: 500px;
+  height: 500px;
+  right: -60px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: radial-gradient(circle, rgba(99,102,241,0.09) 0%, transparent 65%);
+  pointer-events: none;
+}
 
-  /* Right side: phone mockup */
-  .phone {
-    width: 220px;
-    height: 440px;
-    background: #1A1A1E;
-    border-radius: 28px;
-    border: 2px solid rgba(255,255,255,0.08);
-    overflow: hidden;
-    position: relative;
-    z-index: 2;
-    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
-    display: flex;
-    flex-direction: column;
-  }
+.bg-stripe {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 490px;
+  width: 1px;
+  background: linear-gradient(to bottom, transparent, rgba(255,255,255,0.06) 30%, rgba(255,255,255,0.06) 70%, transparent);
+}
 
-  .phone-header {
-    padding: 16px 14px 8px;
-  }
+/* ── Left panel ── */
+.left {
+  position: relative;
+  z-index: 10;
+  width: 490px;
+  padding: 0 64px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
 
-  .phone-greeting {
-    font-size: 9px;
-    color: rgba(255,255,255,0.5);
-  }
+.logo-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
+}
 
-  .phone-name {
-    font-size: 16px;
-    font-weight: 700;
-    color: #fff;
-    margin-top: 2px;
-  }
+.logo-mark {
+  width: 52px;
+  height: 52px;
+  background: #E85A4F;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 20px rgba(232,90,79,0.35);
+  flex-shrink: 0;
+}
 
-  .phone-section-title {
-    font-size: 11px;
-    font-weight: 600;
-    color: #fff;
-    padding: 6px 14px 6px;
-  }
+.logo-mark svg {
+  width: 28px;
+  height: 28px;
+}
 
-  .phone-carousel {
-    display: flex;
-    gap: 8px;
-    padding: 0 14px;
-    overflow: hidden;
-  }
+.logo-name {
+  font-family: "DM Sans", sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 6px;
+  color: #FAFAF9;
+}
 
-  .car-card {
-    width: 100px;
-    min-width: 100px;
-    background: #27272A;
-    border-radius: 10px;
-    overflow: hidden;
-  }
+.headline {
+  font-family: "Fraunces", serif;
+  font-size: 52px;
+  font-weight: 800;
+  line-height: 1.05;
+  color: #FAFAF9;
+  margin-bottom: 16px;
+}
 
-  .car-img {
-    width: 100%;
-    height: 60px;
-    background: linear-gradient(135deg, #3a3a40 0%, #27272A 100%);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 22px;
-  }
+.headline span {
+  color: #E85A4F;
+}
 
-  .car-info {
-    padding: 5px 7px;
-  }
+.sub {
+  font-size: 16px;
+  font-weight: 400;
+  color: rgba(250,250,249,0.55);
+  line-height: 1.5;
+  margin-bottom: 32px;
+  max-width: 320px;
+}
 
-  .car-name {
-    font-size: 7.5px;
-    font-weight: 600;
-    color: #fff;
-  }
+.pills {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
 
-  .car-rarity {
-    font-size: 6px;
-    color: #A855F7;
-    margin-top: 2px;
-  }
+.pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 100px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
 
-  .car-rarity.rare { color: #3B82F6; }
-  .car-rarity.very-rare { color: #A855F7; }
+.pill-coral {
+  background: rgba(232,90,79,0.15);
+  color: #E85A4F;
+  border: 1px solid rgba(232,90,79,0.25);
+}
+.pill-green {
+  background: rgba(50,213,131,0.12);
+  color: #32D583;
+  border: 1px solid rgba(50,213,131,0.2);
+}
+.pill-indigo {
+  background: rgba(99,102,241,0.12);
+  color: #818CF8;
+  border: 1px solid rgba(99,102,241,0.2);
+}
 
-  .phone-feed {
-    padding: 0 14px;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
+/* ── Right panel: phone ── */
+.right {
+  position: relative;
+  z-index: 10;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding-right: 40px;
+}
 
-  .feed-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    background: #27272A;
-    border-radius: 8px;
-    padding: 7px 8px;
-  }
+.phone {
+  width: 200px;
+  height: 420px;
+  background: #16161A;
+  border-radius: 32px;
+  border: 1.5px solid rgba(255,255,255,0.08);
+  overflow: hidden;
+  box-shadow: 0 24px 64px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
 
-  .feed-thumb {
-    width: 34px;
-    height: 34px;
-    border-radius: 6px;
-    background: linear-gradient(135deg, #3a3a40 0%, #27272A 100%);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 14px;
-    flex-shrink: 0;
-  }
+/* Phone notch */
+.phone-notch {
+  width: 60px;
+  height: 6px;
+  background: rgba(255,255,255,0.07);
+  border-radius: 3px;
+  margin: 10px auto 0;
+}
 
-  .feed-text {
-    flex: 1;
-    min-width: 0;
-  }
+.phone-status {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 14px 0;
+}
 
-  .feed-title {
-    font-size: 8px;
-    font-weight: 600;
-    color: #fff;
-  }
+.status-time {
+  font-size: 7px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.6);
+}
 
-  .feed-sub {
-    font-size: 6.5px;
-    color: rgba(255,255,255,0.45);
-    margin-top: 1px;
-  }
+.status-icons {
+  display: flex;
+  gap: 3px;
+  align-items: center;
+}
 
-  .feed-badge {
-    font-size: 6px;
-    padding: 2px 5px;
-    border-radius: 6px;
-    font-weight: 600;
-    flex-shrink: 0;
-  }
+.status-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.4);
+}
 
-  .feed-badge.rare { background: rgba(59,130,246,0.15); color: #3B82F6; }
-  .feed-badge.uncommon { background: rgba(34,197,94,0.15); color: #22C55E; }
-  .feed-badge.very-rare { background: rgba(168,85,247,0.15); color: #A855F7; }
+.phone-content {
+  padding: 8px 12px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow: hidden;
+}
 
-  .phone-nav {
-    margin-top: auto;
-    display: flex;
-    align-items: center;
-    justify-content: space-around;
-    padding: 8px 10px 14px;
-    border-top: 1px solid rgba(255,255,255,0.06);
-  }
+.p-section-label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: rgba(255,255,255,0.35);
+  text-transform: uppercase;
+}
 
-  .nav-item {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 2px;
-  }
+/* Spot card */
+.spot-card {
+  background: #1A1A1E;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.05);
+}
 
-  .nav-icon {
-    width: 16px;
-    height: 16px;
-    border-radius: 4px;
-    background: rgba(255,255,255,0.08);
-  }
+.spot-img {
+  height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
 
-  .nav-icon.active {
-    background: rgba(232, 90, 79, 0.2);
-  }
+.spot-img.purple-bg {
+  background: linear-gradient(135deg, #1C1028 0%, #2A1848 100%);
+}
 
-  .nav-label {
-    font-size: 5.5px;
-    color: rgba(255,255,255,0.35);
-    font-weight: 500;
-    letter-spacing: 0.3px;
-  }
+.spot-img.blue-bg {
+  background: linear-gradient(135deg, #0D1A2E 0%, #1A2848 100%);
+}
 
-  .nav-label.active {
-    color: #E85A4F;
-  }
+.spot-img.green-bg {
+  background: linear-gradient(135deg, #0A1A14 0%, #0F2820 100%);
+}
 
-  .spot-btn {
-    width: 30px;
-    height: 30px;
-    border-radius: 50%;
-    background: #E85A4F;
-    margin-top: -8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
+/* Car silhouette SVG */
+.car-svg {
+  width: 90px;
+  height: 40px;
+  opacity: 0.9;
+}
 
-  .spot-btn svg {
-    width: 14px;
-    height: 14px;
-  }
+.spot-rarity-badge {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  font-size: 6px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  letter-spacing: 0.3px;
+}
 
-  /* Decorative elements */
-  .dots-left, .dots-right {
-    position: absolute;
-    z-index: 1;
-    opacity: 0.04;
-  }
-  .dots-left {
-    left: 30px;
-    top: 50%;
-    transform: translateY(-50%);
-  }
-  .dots-right {
-    right: 30px;
-    top: 50%;
-    transform: translateY(-50%);
-  }
+.badge-vr { background: rgba(192,132,252,0.2); color: #C084FC; }
+.badge-rare { background: rgba(96,165,250,0.2); color: #60A5FA; }
+.badge-unc { background: rgba(52,211,153,0.2); color: #34D399; }
+
+.spot-meta {
+  padding: 6px 8px;
+}
+
+.spot-name {
+  font-size: 8px;
+  font-weight: 700;
+  color: #FAFAF9;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.spot-pts {
+  font-size: 6.5px;
+  color: rgba(255,255,255,0.4);
+  margin-top: 1px;
+}
+
+.spot-row {
+  display: flex;
+  gap: 6px;
+}
+
+.spot-row .spot-card {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Feed row */
+.feed-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  background: #1A1A1E;
+  border-radius: 8px;
+  padding: 6px 8px;
+  border: 1px solid rgba(255,255,255,0.04);
+}
+
+.feed-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.feed-icon.pur { background: linear-gradient(135deg, #1C1028, #2A1848); }
+.feed-icon.blu { background: linear-gradient(135deg, #0D1A2E, #1A2848); }
+
+.feed-info { flex: 1; min-width: 0; }
+.feed-name {
+  font-size: 7.5px;
+  font-weight: 600;
+  color: #FAFAF9;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.feed-who {
+  font-size: 6px;
+  color: rgba(255,255,255,0.35);
+  margin-top: 1px;
+}
+
+/* Nav bar */
+.phone-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  padding: 8px 8px 14px;
+  border-top: 1px solid rgba(255,255,255,0.05);
+  background: #16161A;
+}
+
+.nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+
+.nav-dot {
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  background: rgba(255,255,255,0.06);
+}
+
+.nav-dot.active { background: rgba(232,90,79,0.2); }
+
+.nav-lbl {
+  font-size: 5px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  color: rgba(255,255,255,0.25);
+}
+.nav-lbl.active { color: #E85A4F; }
+
+.spot-fab {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #E85A4F;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: -6px;
+  box-shadow: 0 4px 12px rgba(232,90,79,0.4);
+}
+
+/* ── Rarity legend card ── */
+.rarity-card {
+  width: 130px;
+  background: #16161A;
+  border: 1.5px solid rgba(255,255,255,0.06);
+  border-radius: 20px;
+  padding: 16px 14px;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+  align-self: center;
+}
+
+.rarity-title {
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: rgba(255,255,255,0.3);
+  text-transform: uppercase;
+  margin-bottom: 12px;
+}
+
+.rarity-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.rarity-row:last-child { margin-bottom: 0; }
+
+.rarity-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.rarity-info { flex: 1; }
+
+.rarity-name {
+  font-size: 9px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.rarity-pts {
+  font-size: 7px;
+  color: rgba(255,255,255,0.3);
+  margin-top: 2px;
+}
+
+.r-common .rarity-dot { background: #9CA3AF; }
+.r-common .rarity-name { color: #9CA3AF; }
+
+.r-uncommon .rarity-dot { background: #34D399; }
+.r-uncommon .rarity-name { color: #34D399; }
+
+.r-rare .rarity-dot { background: #60A5FA; }
+.r-rare .rarity-name { color: #60A5FA; }
+
+.r-vr .rarity-dot { background: #C084FC; }
+.r-vr .rarity-name { color: #C084FC; }
+
+.r-xr .rarity-dot { background: #F87171; }
+.r-xr .rarity-name { color: #F87171; }
 </style>
 </head>
 <body>
-<div class="container">
-  <div class="glow"></div>
+<div class="canvas">
+  <div class="bg-grid"></div>
+  <div class="bg-glow-left"></div>
+  <div class="bg-glow-right"></div>
+  <div class="bg-stripe"></div>
 
-  <!-- Left: Logo + Text -->
+  <!-- LEFT: Branding -->
   <div class="left">
-    <div class="logo-circle">
-      <svg viewBox="-3 -3 96 96" fill="none" stroke="white" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M0 24L0 0L24 0" />
-        <path d="M66 0L90 0L90 24" />
-        <path d="M0 66L0 90L24 90" />
-        <path d="M66 90L90 90L90 66" />
-        <circle cx="45" cy="45" r="15" />
-      </svg>
+    <div class="logo-row">
+      <div class="logo-mark">
+        <svg viewBox="0 0 90 90" fill="none" stroke="white" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M0 22L0 0L22 0"/>
+          <path d="M68 0L90 0L90 22"/>
+          <path d="M0 68L0 90L22 90"/>
+          <path d="M68 90L90 90L90 68"/>
+          <circle cx="45" cy="45" r="14"/>
+        </svg>
+      </div>
+      <div class="logo-name">SPOTTER</div>
     </div>
-    <div class="app-name">SPOTTER</div>
-    <div class="tagline">Spot. Identify. Collect.</div>
+
+    <div class="headline">Spot cars.<br>Earn <span>points.</span><br>Compete.</div>
+
+    <div class="sub">Identify any car with AI, track your collection, and challenge friends in real-world spotting games.</div>
+
+    <div class="pills">
+      <div class="pill pill-coral">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/></svg>
+        AI Identification
+      </div>
+      <div class="pill pill-green">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        Rarity Tiers
+      </div>
+      <div class="pill pill-indigo">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Games &amp; Leaderboards
+      </div>
+    </div>
   </div>
 
-  <!-- Right: Phone mockup -->
-  <div class="phone">
-    <div class="phone-header">
-      <div class="phone-greeting">Good morning,</div>
-      <div class="phone-name">Spotter 👋</div>
-    </div>
+  <!-- RIGHT: Phone + rarity card -->
+  <div class="right">
 
-    <div class="phone-section-title">Latest Spots</div>
-    <div class="phone-carousel">
-      <div class="car-card">
-        <div class="car-img">🏎️</div>
-        <div class="car-info">
-          <div class="car-name">2024 Porsche 911</div>
-          <div class="car-rarity very-rare">Very Rare · 25 pts</div>
+    <!-- Rarity legend -->
+    <div class="rarity-card">
+      <div class="rarity-title">Rarity Tiers</div>
+      <div class="rarity-row r-common">
+        <div class="rarity-dot"></div>
+        <div class="rarity-info">
+          <div class="rarity-name">Common</div>
+          <div class="rarity-pts">1 pt</div>
         </div>
       </div>
-      <div class="car-card">
-        <div class="car-img">🚗</div>
-        <div class="car-info">
-          <div class="car-name">2023 BMW M4</div>
-          <div class="car-rarity rare">Rare · 10 pts</div>
+      <div class="rarity-row r-uncommon">
+        <div class="rarity-dot"></div>
+        <div class="rarity-info">
+          <div class="rarity-name">Uncommon</div>
+          <div class="rarity-pts">5 pts</div>
         </div>
       </div>
-    </div>
-
-    <div class="phone-section-title" style="margin-top:8px">Community Spots</div>
-    <div class="phone-feed">
-      <div class="feed-row">
-        <div class="feed-thumb">🏎️</div>
-        <div class="feed-text">
-          <div class="feed-title">2024 McLaren 720S</div>
-          <div class="feed-sub">Spotted by Alex · 2h ago</div>
+      <div class="rarity-row r-rare">
+        <div class="rarity-dot"></div>
+        <div class="rarity-info">
+          <div class="rarity-name">Rare</div>
+          <div class="rarity-pts">10 pts</div>
         </div>
-        <div class="feed-badge very-rare">Very Rare</div>
       </div>
-      <div class="feed-row">
-        <div class="feed-thumb">🚙</div>
-        <div class="feed-text">
-          <div class="feed-title">2023 Mercedes G-Wagon</div>
-          <div class="feed-sub">Spotted by Sarah · 4h ago</div>
+      <div class="rarity-row r-vr">
+        <div class="rarity-dot"></div>
+        <div class="rarity-info">
+          <div class="rarity-name">Very Rare</div>
+          <div class="rarity-pts">25 pts</div>
         </div>
-        <div class="feed-badge rare">Rare</div>
       </div>
-      <div class="feed-row">
-        <div class="feed-thumb">🚘</div>
-        <div class="feed-text">
-          <div class="feed-title">2024 Tesla Model S</div>
-          <div class="feed-sub">Spotted by Mike · 5h ago</div>
+      <div class="rarity-row r-xr">
+        <div class="rarity-dot"></div>
+        <div class="rarity-info">
+          <div class="rarity-name">Extremely Rare</div>
+          <div class="rarity-pts">100 pts</div>
         </div>
-        <div class="feed-badge uncommon">Uncommon</div>
       </div>
     </div>
 
-    <div class="phone-nav">
-      <div class="nav-item">
-        <div class="nav-icon active"></div>
-        <div class="nav-label active">HOME</div>
-      </div>
-      <div class="nav-item">
-        <div class="nav-icon"></div>
-        <div class="nav-label">CARS</div>
-      </div>
-      <div class="nav-item">
-        <div class="spot-btn">
-          <svg viewBox="-3 -3 96 96" fill="none" stroke="white" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M0 24L0 0L24 0" />
-            <path d="M66 0L90 0L90 24" />
-            <path d="M0 66L0 90L24 90" />
-            <path d="M66 90L90 90L90 66" />
-            <circle cx="45" cy="45" r="15" />
-          </svg>
+    <!-- Phone mockup -->
+    <div class="phone">
+      <div class="phone-notch"></div>
+      <div class="phone-status">
+        <div class="status-time">9:41</div>
+        <div class="status-icons">
+          <div class="status-dot"></div>
+          <div class="status-dot"></div>
+          <div class="status-dot"></div>
         </div>
       </div>
-      <div class="nav-item">
-        <div class="nav-icon"></div>
-        <div class="nav-label">COMMUNITY</div>
+
+      <div class="phone-content">
+        <div class="p-section-label">Latest Spots</div>
+
+        <!-- Two spot cards side by side -->
+        <div class="spot-row">
+          <div class="spot-card">
+            <div class="spot-img purple-bg">
+              <!-- Porsche 911 silhouette -->
+              <svg class="car-svg" viewBox="0 0 120 50" fill="none">
+                <path d="M8 34 L14 20 Q20 12 34 10 L52 9 Q64 9 72 14 L88 20 L100 22 Q108 23 110 28 L112 34 Z" fill="rgba(192,132,252,0.35)" stroke="rgba(192,132,252,0.7)" stroke-width="1.2"/>
+                <circle cx="26" cy="35" r="6" fill="rgba(192,132,252,0.2)" stroke="rgba(192,132,252,0.6)" stroke-width="1.2"/>
+                <circle cx="90" cy="35" r="6" fill="rgba(192,132,252,0.2)" stroke="rgba(192,132,252,0.6)" stroke-width="1.2"/>
+                <path d="M34 10 L36 20 L52 19 L54 9" fill="rgba(192,132,252,0.15)" stroke="rgba(192,132,252,0.4)" stroke-width="0.8"/>
+              </svg>
+              <div class="spot-rarity-badge badge-vr">Very Rare</div>
+            </div>
+            <div class="spot-meta">
+              <div class="spot-name">Porsche 911</div>
+              <div class="spot-pts">25 pts</div>
+            </div>
+          </div>
+
+          <div class="spot-card">
+            <div class="spot-img blue-bg">
+              <!-- Generic sports car silhouette -->
+              <svg class="car-svg" viewBox="0 0 120 50" fill="none">
+                <path d="M6 34 L12 22 Q18 13 30 11 L55 9 Q68 9 78 15 L92 21 L104 24 Q110 25 112 30 L114 34 Z" fill="rgba(96,165,250,0.3)" stroke="rgba(96,165,250,0.65)" stroke-width="1.2"/>
+                <circle cx="24" cy="35" r="6" fill="rgba(96,165,250,0.2)" stroke="rgba(96,165,250,0.6)" stroke-width="1.2"/>
+                <circle cx="92" cy="35" r="6" fill="rgba(96,165,250,0.2)" stroke="rgba(96,165,250,0.6)" stroke-width="1.2"/>
+                <path d="M30 11 L32 20 L55 19 L58 9" fill="rgba(96,165,250,0.12)" stroke="rgba(96,165,250,0.35)" stroke-width="0.8"/>
+              </svg>
+              <div class="spot-rarity-badge badge-rare">Rare</div>
+            </div>
+            <div class="spot-meta">
+              <div class="spot-name">BMW M4</div>
+              <div class="spot-pts">10 pts</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Community feed -->
+        <div class="p-section-label">Community</div>
+
+        <div class="feed-item">
+          <div class="feed-icon pur">
+            <svg width="16" height="16" viewBox="0 0 120 50" fill="none">
+              <path d="M8 34 L14 20 Q20 12 34 10 L52 9 Q64 9 72 14 L88 20 L100 22 Q108 23 110 28 L112 34 Z" fill="rgba(192,132,252,0.4)" stroke="rgba(192,132,252,0.8)" stroke-width="2"/>
+            </svg>
+          </div>
+          <div class="feed-info">
+            <div class="feed-name">McLaren 720S</div>
+            <div class="feed-who">Alex · 2h ago</div>
+          </div>
+          <div class="spot-rarity-badge badge-vr" style="position:static;font-size:6px;padding:2px 5px;border-radius:4px;">Very Rare</div>
+        </div>
+
+        <div class="feed-item">
+          <div class="feed-icon blu">
+            <svg width="16" height="16" viewBox="0 0 120 50" fill="none">
+              <path d="M6 34 L12 22 Q18 13 30 11 L55 9 Q68 9 78 15 L92 21 L104 24 Q110 25 112 30 L114 34 Z" fill="rgba(96,165,250,0.4)" stroke="rgba(96,165,250,0.8)" stroke-width="2"/>
+            </svg>
+          </div>
+          <div class="feed-info">
+            <div class="feed-name">Mercedes G-Wagon</div>
+            <div class="feed-who">Sarah · 4h ago</div>
+          </div>
+          <div class="spot-rarity-badge badge-rare" style="position:static;font-size:6px;padding:2px 5px;border-radius:4px;">Rare</div>
+        </div>
       </div>
-      <div class="nav-item">
-        <div class="nav-icon"></div>
-        <div class="nav-label">TABLES</div>
+
+      <!-- Nav -->
+      <div class="phone-nav">
+        <div class="nav-item">
+          <div class="nav-dot active"></div>
+          <div class="nav-lbl active">HOME</div>
+        </div>
+        <div class="nav-item">
+          <div class="nav-dot"></div>
+          <div class="nav-lbl">CARS</div>
+        </div>
+        <div class="nav-item">
+          <div class="spot-fab">
+            <svg width="14" height="14" viewBox="0 0 90 90" fill="none" stroke="white" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M0 22L0 0L22 0"/>
+              <path d="M68 0L90 0L90 22"/>
+              <path d="M0 68L0 90L22 90"/>
+              <path d="M68 90L90 90L90 68"/>
+              <circle cx="45" cy="45" r="13"/>
+            </svg>
+          </div>
+        </div>
+        <div class="nav-item">
+          <div class="nav-dot"></div>
+          <div class="nav-lbl">GAMES</div>
+        </div>
+        <div class="nav-item">
+          <div class="nav-dot"></div>
+          <div class="nav-lbl">PROFILE</div>
+        </div>
       </div>
     </div>
   </div>
