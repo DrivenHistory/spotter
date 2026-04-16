@@ -10,6 +10,7 @@ import { relativeTime } from "@/lib/time";
 import { RarityBadge } from "@/components/ui";
 import { CarDetailView } from "@/components/CarDetailView";
 import { MapView } from "@/components/MapView";
+import { PullToRefresh } from "@/components/PullToRefresh";
 
 const RARE_TIERS = ["Rare", "Very Rare", "Extremely Rare"];
 
@@ -88,7 +89,12 @@ export function CommunityTab({ onProfile }: { onProfile?: () => void }) {
   }
 
   return (
-    <div className="h-full overflow-y-auto scrollbar-hide px-5 pb-24">
+    <PullToRefresh className="h-full overflow-y-auto scrollbar-hide px-5 pb-24" onRefresh={async () => {
+      try {
+        const { spots } = await spotter.getFeed();
+        setAllSpots(spots);
+      } catch { /* ignore */ }
+    }}>
       {/* Header */}
       <div className="flex items-center justify-between mb-5">
         <h1 className="text-[28px] font-bold text-text-primary">Community</h1>
@@ -199,7 +205,7 @@ export function CommunityTab({ onProfile }: { onProfile?: () => void }) {
         </div>
         <ArrowRight size={20} className="text-accent-coral shrink-0" />
       </button>
-    </div>
+    </PullToRefresh>
   );
 }
 

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { spotter, user as userApi, type SpottedCar } from "@/lib/api";
 import { points, RARITY_POINTS } from "@/lib/rarity";
 import { CarDetailView } from "@/components/CarDetailView";
+import { PullToRefresh } from "@/components/PullToRefresh";
 import { useAuth } from "@/lib/auth-context";
 import { Zap, Flame, Star, DollarSign } from "lucide-react";
 
@@ -177,7 +178,12 @@ export function CarsTab({
       </div>
 
       {/* Sections */}
-      <div className="flex-1 overflow-y-auto scrollbar-hide px-5 pb-24">
+      <PullToRefresh className="flex-1 overflow-y-auto scrollbar-hide px-5 pb-24" onRefresh={async () => {
+        try {
+          const { spots } = await spotter.getFeed();
+          setCars(spots);
+        } catch { /* ignore */ }
+      }}>
         {loading ? (
           <div className="flex justify-center py-16">
             <div className="w-6 h-6 border-2 border-accent-coral border-t-transparent rounded-full animate-spin" />
@@ -218,7 +224,7 @@ export function CarsTab({
             />
           </>
         )}
-      </div>
+      </PullToRefresh>
     </div>
   );
 }

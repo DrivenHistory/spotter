@@ -1,4 +1,6 @@
 import type { Metadata, Viewport } from "next";
+import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 import { AuthProvider } from "@/lib/auth-context";
 import { GroupsProvider } from "@/lib/groups-context";
@@ -22,6 +24,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <body className="antialiased">
         <AuthProvider><GroupsProvider>{children}</GroupsProvider></AuthProvider>
+        <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );

@@ -8,6 +8,7 @@ import { useGroups } from "@/lib/groups-context";
 import { useAuth } from "@/lib/auth-context";
 import { InviteSheet } from "@/components/groups/InviteSheet";
 import { CreateGroupSheet } from "@/components/groups/CreateGroupSheet";
+import { PullToRefresh } from "@/components/PullToRefresh";
 
 interface LeaderboardEntry {
   email: string;
@@ -126,7 +127,16 @@ export function LeaderboardTab({ refreshKey = 0 }: { refreshKey?: number } = {})
   const podiumEntries = entries.slice(0, Math.min(entries.length, 3));
 
   return (
-    <div className="h-full overflow-y-auto scrollbar-hide px-5 pb-24">
+    <PullToRefresh className="h-full overflow-y-auto scrollbar-hide px-5 pb-24" onRefresh={async () => {
+      try {
+        const { spots } = await spotter.getFeed();
+        setAllSpots(spots);
+        if (selectedTab === 1) {
+          const lb = await groupsApi.getGroupLeaderboard();
+          setGroupLeaderboard(lb);
+        }
+      } catch { /* ignore */ }
+    }}>
       <h1 className="text-[28px] font-bold text-text-primary mb-4">Leaderboard</h1>
 
       {/* Segment control — scrollable for many tabs */}
@@ -454,7 +464,7 @@ export function LeaderboardTab({ refreshKey = 0 }: { refreshKey?: number } = {})
           </div>
         </div>
       )}
-    </div>
+    </PullToRefresh>
   );
 }
 

@@ -8,6 +8,7 @@ import { points, spotterLevel } from "@/lib/rarity";
 import { relativeTime } from "@/lib/time";
 import { CarDetailView } from "@/components/CarDetailView";
 import { MapView } from "@/components/MapView";
+import { PullToRefresh } from "@/components/PullToRefresh";
 import { cacheGet, cacheSet, cacheClear } from "@/lib/cache";
 
 const RARITY_ORDER: Record<string, number> = {
@@ -178,7 +179,15 @@ export function HomeTab({
   }
 
   return (
-    <div className="h-full overflow-y-auto scrollbar-hide relative">
+    <PullToRefresh className="h-full overflow-y-auto scrollbar-hide relative" onRefresh={async () => {
+      if (!user) return;
+      try {
+        const { spots } = await spotter.getFeed();
+        const mine = spots.filter((s) => s.spotterEmail.toLowerCase() === user.email.toLowerCase());
+        setCars(mine);
+        cacheSet(`feed_${user.email}`, mine);
+      } catch { /* ignore */ }
+    }}>
       {/* Hidden gallery input */}
       <input
         id="home-gallery-input"
@@ -359,7 +368,7 @@ export function HomeTab({
           onDismiss={() => setLevelUpInfo(null)}
         />
       )}
-    </div>
+    </PullToRefresh>
   );
 }
 
