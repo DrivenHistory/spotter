@@ -7,6 +7,7 @@ import { AppShell } from "@/components/AppShell";
 import { LandingPage } from "@/components/LandingPage";
 import { SignInForm } from "@/components/SignInForm";
 import { SignUpForm } from "@/components/SignUpForm";
+import { IOSAppPrompt } from "@/components/IOSAppPrompt";
 
 export default function Home() {
   const { user, isLoading } = useAuth();
@@ -14,9 +15,21 @@ export default function Home() {
 
   if (isLoading) return <SplashScreen />;
 
-  if (user || screen === "guest") return <AppShell onLogin={() => setScreen("signin")} onSignUp={() => setScreen("signup")} />;
+  const content =
+    user || screen === "guest" ? (
+      <AppShell onLogin={() => setScreen("signin")} onSignUp={() => setScreen("signup")} />
+    ) : screen === "signin" ? (
+      <SignInForm onBack={() => setScreen("landing")} onSignUp={() => setScreen("signup")} />
+    ) : screen === "signup" ? (
+      <SignUpForm onBack={() => setScreen("landing")} onSignIn={() => setScreen("signin")} />
+    ) : (
+      <LandingPage onSignIn={() => setScreen("signin")} onSignUp={() => setScreen("signup")} onGuest={() => setScreen("guest")} />
+    );
 
-  if (screen === "signin") return <SignInForm onBack={() => setScreen("landing")} onSignUp={() => setScreen("signup")} />;
-  if (screen === "signup") return <SignUpForm onBack={() => setScreen("landing")} onSignIn={() => setScreen("signin")} />;
-  return <LandingPage onSignIn={() => setScreen("signin")} onSignUp={() => setScreen("signup")} onGuest={() => setScreen("guest")} />;
+  return (
+    <>
+      {content}
+      <IOSAppPrompt />
+    </>
+  );
 }
