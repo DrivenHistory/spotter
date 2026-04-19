@@ -205,9 +205,29 @@ export function HomeTab({
 
         {/* ── Header ── */}
         <div className="flex items-center justify-between">
-          <span className="text-[26px] font-black tracking-tight text-text-primary" style={{ fontFamily: "var(--font-display)" }}>
-            Spotter
-          </span>
+          <div className="flex items-center gap-2.5">
+            <div className="relative w-8 h-8 rounded-full bg-accent-coral flex items-center justify-center">
+              <svg
+                width="18"
+                height="18"
+                viewBox="-3 -3 96 96"
+                fill="none"
+                stroke="white"
+                strokeWidth="7"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M0 24L0 0L24 0" />
+                <path d="M66 0L90 0L90 24" />
+                <path d="M0 66L0 90L24 90" />
+                <path d="M66 90L90 90L90 66" />
+                <circle cx="45" cy="45" r="15" />
+              </svg>
+            </div>
+            <span className="text-[18px] font-semibold tracking-[4px] text-text-primary">
+              SPOTTER
+            </span>
+          </div>
           <div className="flex items-center gap-2">
             {user && (
               <label
