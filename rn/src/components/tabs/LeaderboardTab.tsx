@@ -132,8 +132,8 @@ export function LeaderboardTab({ refreshKey = 0 }: { refreshKey?: number } = {})
         const { spots } = await spotter.getFeed();
         setAllSpots(spots);
         if (selectedTab === 1) {
-          const lb = await groupsApi.getGroupLeaderboard();
-          setGroupLeaderboard(lb);
+          const { rankings } = await groupsApi.getGroupLeaderboard();
+          setGroupRankings(rankings);
         }
       } catch { /* ignore */ }
     }}>
