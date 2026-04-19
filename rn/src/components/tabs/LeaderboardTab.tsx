@@ -44,9 +44,9 @@ export function LeaderboardTab({ refreshKey = 0 }: { refreshKey?: number } = {})
   const [showCreateGroup, setShowCreateGroup] = useState(false);
   const [newGroupInvite, setNewGroupInvite] = useState<typeof myGroups[number]["group"] | null>(null);
 
-  // Dynamic tabs: All Time | Groups | <per-group tabs>
+  // Dynamic tabs: Games | All Time | <per-group tabs>
   const tabs = useMemo(() => {
-    const base = ["All Time", "Games"];
+    const base = ["Games", "All Time"];
     for (const m of myGroups) base.push(m.group.name);
     return base;
   }, [myGroups]);
@@ -68,9 +68,9 @@ export function LeaderboardTab({ refreshKey = 0 }: { refreshKey?: number } = {})
     })();
   }, [refreshKey]);
 
-  // Fetch group leaderboard when Groups tab selected
+  // Fetch group leaderboard when Games tab selected
   useEffect(() => {
-    if (selectedTab === 1) {
+    if (selectedTab === 0) {
       (async () => {
         try {
           const { rankings } = await groupsApi.getGroupLeaderboard();
@@ -131,7 +131,7 @@ export function LeaderboardTab({ refreshKey = 0 }: { refreshKey?: number } = {})
       try {
         const { spots } = await spotter.getFeed();
         setAllSpots(spots);
-        if (selectedTab === 1) {
+        if (selectedTab === 0) {
           const { rankings } = await groupsApi.getGroupLeaderboard();
           setGroupRankings(rankings);
         }
@@ -156,15 +156,16 @@ export function LeaderboardTab({ refreshKey = 0 }: { refreshKey?: number } = {})
         ))}
       </div>
 
-      {/* Add group button — only on Groups tab, right-aligned below tabs */}
-      {selectedTab === 1 && (
+      {/* Add group button — only on Games tab, right-aligned below tabs */}
+      {selectedTab === 0 && (
         <div className="flex justify-end mb-3">
           <button
             onClick={() => setShowCreateGroup(true)}
-            className="w-8 h-8 flex items-center justify-center rounded-full bg-accent-coral/15 text-accent-coral active:opacity-70 transition-opacity"
-            aria-label="Create group"
+            className="h-8 pl-2 pr-3 flex items-center gap-1.5 rounded-full bg-accent-coral/15 text-accent-coral active:opacity-70 transition-opacity"
+            aria-label="Create new game"
           >
             <Plus size={18} strokeWidth={2.5} />
+            <span className="text-[13px] font-semibold">New Game</span>
           </button>
         </div>
       )}
@@ -173,7 +174,7 @@ export function LeaderboardTab({ refreshKey = 0 }: { refreshKey?: number } = {})
         <div className="flex justify-center py-12">
           <div className="w-6 h-6 border-2 border-accent-coral border-t-transparent rounded-full animate-spin" />
         </div>
-      ) : selectedTab === 0 ? (
+      ) : selectedTab === 1 ? (
         /* ── All Time Tab ── */
         entries.length === 0 ? (
           <EmptyState />
@@ -210,8 +211,8 @@ export function LeaderboardTab({ refreshKey = 0 }: { refreshKey?: number } = {})
             </div>
           </>
         )
-      ) : selectedTab === 1 ? (
-        /* ── Groups Tab ── */
+      ) : selectedTab === 0 ? (
+        /* ── Games Tab ── */
         groupRankings.length === 0 ? (
           <EmptyState message="No games yet" sub="Create a game to start competing!" />
         ) : (
