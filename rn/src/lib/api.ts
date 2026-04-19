@@ -67,9 +67,12 @@ export const auth = {
 // ── User settings ──
 export const user = {
   getSettings: () =>
-    request<{ displayName: string | null; email: string; bio: string | null }>(
-      "/api/user/settings"
-    ),
+    request<{
+      displayName: string | null;
+      email: string;
+      bio: string | null;
+      bonusPoints: number;
+    }>("/api/user/settings"),
   updateSettings: (data: { displayName?: string; bio?: string }) =>
     request<{ ok: boolean }>("/api/user/settings", {
       method: "PATCH",

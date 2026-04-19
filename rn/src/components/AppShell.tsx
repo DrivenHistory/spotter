@@ -6,6 +6,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useGroups } from "@/lib/groups-context";
 import { spotter, type SpottedCar } from "@/lib/api";
 import { initialisePush, teardownPush } from "@/lib/push";
+import { initializeAdMob } from "@/lib/admob";
 import { HomeTab } from "@/components/tabs/HomeTab";
 import { CarsTab } from "@/components/tabs/CarsTab";
 import { SpotTab, getPendingSpot, clearPendingSpot } from "@/components/tabs/SpotTab";
@@ -40,6 +41,8 @@ export function AppShell({ onLogin, onSignUp }: { onLogin: () => void; onSignUp:
     import("@capacitor/splash-screen").then(({ SplashScreen }) => {
       SplashScreen.hide();
     }).catch(() => {/* not running in Capacitor */});
+    // Kick off AdMob init in the background — no-op on web.
+    initializeAdMob().catch(() => { /* ignore */ });
   }, []);
 
   // Initialise push when user logs in; teardown on logout

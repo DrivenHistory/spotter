@@ -33,7 +33,13 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths"></meta-data>
         </provider>
+
+        <meta-data
+            android:name="com.google.android.gms.ads.APPLICATION_ID"
+            android:value="ca-app-pub-5951830349172589~4404901638"/>
     </application>
+
+    <uses-permission android:name="com.google.android.gms.permission.AD_ID" />
 
     <!-- Permissions -->
 

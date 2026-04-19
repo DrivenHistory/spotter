@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Bell, Car, Gem, Layers, Lock, LogIn, Map, Medal, Plus, Trophy } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Bell, Car, Gem, Gift, Layers, Lock, LogIn, Map, Medal, Play, Plus, Trophy } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { spotter, user as userApi, type SpottedCar } from "@/lib/api";
 import { points, spotterLevel } from "@/lib/rarity";
@@ -10,6 +10,7 @@ import { CarDetailView } from "@/components/CarDetailView";
 import { MapView } from "@/components/MapView";
 import { PullToRefresh } from "@/components/PullToRefresh";
 import { cacheGet, cacheSet, cacheClear } from "@/lib/cache";
+import { isNativeAdSupported, showRewardedAdForEmail } from "@/lib/admob";
 
 const RARITY_ORDER: Record<string, number> = {
   "Extremely Rare": 0,
@@ -59,16 +60,20 @@ export function HomeTab({
   const [selectedCar, setSelectedCar] = useState<SpottedCar | null>(null);
   const [showMap, setShowMap] = useState(false);
   const [dbDisplayName, setDbDisplayName] = useState<string | null>(null);
+  const [bonusPoints, setBonusPoints] = useState<number>(0);
+
+  const refetchSettings = useCallback(async () => {
+    try {
+      const s = await userApi.getSettings();
+      if (s.displayName) setDbDisplayName(s.displayName);
+      setBonusPoints(s.bonusPoints ?? 0);
+    } catch { /* ignore */ }
+  }, []);
 
   useEffect(() => {
     if (!user) return;
-    (async () => {
-      try {
-        const s = await userApi.getSettings();
-        if (s.displayName) setDbDisplayName(s.displayName);
-      } catch { /* ignore */ }
-    })();
-  }, [user]);
+    refetchSettings();
+  }, [user, refetchSettings]);
 
   const initials = (() => {
     const name = dbDisplayName ?? user?.name ?? "S";
@@ -315,9 +320,14 @@ export function HomeTab({
                 />
               </div>
 
-              {/* Divider + achievements label */}
+              {/* Divider + achievements label + bonus points */}
               <div className="w-full h-px bg-white/20" />
-              <span className="text-[9px] font-bold tracking-[1.2px] text-white/60 uppercase">Achievements</span>
+              <div className="flex items-center justify-between">
+                <span className="text-[9px] font-bold tracking-[1.2px] text-white/60 uppercase">Achievements</span>
+                <span className="text-[9px] font-bold tracking-[1.2px] text-white/60 uppercase">
+                  Bonus Points {bonusPoints}
+                </span>
+              </div>
 
               {/* 4-column badge row */}
               <div className="flex rounded-[14px] bg-black/20 overflow-hidden">
@@ -349,6 +359,11 @@ export function HomeTab({
                 ))}
               </div>
             </div>
+
+            {/* ── Rewarded ad (opt-in) — native only ── */}
+            {isNativeAdSupported() && user && (
+              <RewardedAdCard email={user.email} onEarned={refetchSettings} />
+            )}
 
             {/* ── Car grid ── */}
             {loading ? (
@@ -490,6 +505,53 @@ function CarCard({ car, onTap }: { car: SpottedCar; onTap: () => void }) {
           </div>
         )}
         <p className="text-[10px] text-text-muted">{relativeTime(date)}</p>
+      </div>
+    </button>
+  );
+}
+
+function RewardedAdCard({ email, onEarned }: { email: string; onEarned: () => void | Promise<void> }) {
+  const [busy, setBusy] = useState(false);
+  const [earnedFlash, setEarnedFlash] = useState(false);
+
+  const handleTap = async () => {
+    if (busy) return;
+    setBusy(true);
+    const earned = await showRewardedAdForEmail(email);
+    setBusy(false);
+    if (earned) {
+      setEarnedFlash(true);
+      // Reconcile with server after SSV — give Google a moment to POST.
+      setTimeout(() => { void onEarned(); }, 2500);
+      setTimeout(() => setEarnedFlash(false), 3500);
+    }
+  };
+
+  return (
+    <button
+      onClick={handleTap}
+      disabled={busy}
+      className="w-full flex items-center gap-3 rounded-[16px] bg-bg-card border border-border-subtle px-4 py-3 active:opacity-75 transition-opacity text-left disabled:opacity-60"
+    >
+      <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 bg-accent-coral/15 text-accent-coral">
+        <Gift size={18} />
+      </div>
+      <div className="flex-1 min-w-0">
+        {earnedFlash ? (
+          <>
+            <p className="text-[13px] font-semibold text-text-primary">+10 Bonus Points earned!</p>
+            <p className="text-[11px] text-text-muted">Thanks for watching</p>
+          </>
+        ) : (
+          <>
+            <p className="text-[13px] font-semibold text-text-primary">Earn +10 Bonus Points</p>
+            <p className="text-[11px] text-text-muted">Watch a short ad · ~15 sec</p>
+          </>
+        )}
+      </div>
+      <div className="flex items-center gap-1.5 shrink-0 h-8 px-3 rounded-full bg-accent-coral text-white text-[12px] font-semibold">
+        <Play size={12} fill="currentColor" />
+        {busy ? "Loading" : "Watch"}
       </div>
     </button>
   );
