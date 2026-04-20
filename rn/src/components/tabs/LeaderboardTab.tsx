@@ -13,7 +13,6 @@ import { PullToRefresh } from "@/components/PullToRefresh";
 interface LeaderboardEntry {
   email: string;
   name: string;
-  spots: SpottedCar[];
   totalPoints: number;
   totalSpots: number;
   rareFinds: number;
@@ -31,7 +30,7 @@ const RANK_COLORS: Record<number, { bg: string; text: string; border: string }> 
 export function LeaderboardTab({ refreshKey = 0 }: { refreshKey?: number } = {}) {
   const { myGroups } = useGroups();
   const { user } = useAuth();
-  const [allSpots, setAllSpots] = useState<SpottedCar[]>([]);
+  const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [selectedTab, setSelectedTab] = useState(0);
   const [loading, setLoading] = useState(true);
   const [showScoring, setShowScoring] = useState(false);
@@ -61,8 +60,8 @@ export function LeaderboardTab({ refreshKey = 0 }: { refreshKey?: number } = {})
   useEffect(() => {
     (async () => {
       try {
-        const { spots } = await spotter.getFeed();
-        setAllSpots(spots);
+        const { entries } = await spotter.getLeaderboard();
+        setEntries(entries);
       } catch { /* ignore */ }
       setLoading(false);
     })();
@@ -99,25 +98,7 @@ export function LeaderboardTab({ refreshKey = 0 }: { refreshKey?: number } = {})
     })();
   }, [selectedTab, myGroups, groupMembers]);
 
-  // All Time leaderboard entries (reused for tab 0)
-  const entries = useMemo(() => {
-    const filtered = allSpots;
-    const grouped = new Map<string, SpottedCar[]>();
-    for (const s of filtered) {
-      const key = s.spotterEmail.toLowerCase();
-      grouped.set(key, [...(grouped.get(key) ?? []), s]);
-    }
-    const list: LeaderboardEntry[] = Array.from(grouped.entries()).map(([email, spots]) => ({
-      email,
-      name: spots[0].spotterName || email.split("@")[0].replace(/[._-]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
-      spots,
-      totalPoints: spots.reduce((s, c) => s + points(c.rarity), 0),
-      totalSpots: spots.length,
-      rareFinds: spots.filter((c) => ["Rare", "Very Rare", "Extremely Rare"].includes(c.rarity ?? "")).length,
-    }));
-    list.sort((a, b) => b.totalPoints - a.totalPoints);
-    return list;
-  }, [allSpots]);
+  // entries come pre-sorted from /api/spotter/leaderboard (DESC by points).
 
   const initials = (name: string) => {
     const p = name.split(" ");
@@ -129,8 +110,8 @@ export function LeaderboardTab({ refreshKey = 0 }: { refreshKey?: number } = {})
   return (
     <PullToRefresh className="h-full overflow-y-auto scrollbar-hide px-5 pb-24" onRefresh={async () => {
       try {
-        const { spots } = await spotter.getFeed();
-        setAllSpots(spots);
+        const { entries } = await spotter.getLeaderboard();
+        setEntries(entries);
         if (selectedTab === 0) {
           const { rankings } = await groupsApi.getGroupLeaderboard();
           setGroupRankings(rankings);

@@ -292,6 +292,16 @@ export const spotter = {
     }),
   getFeed: () => request<{ spots: SpottedCar[] }>(`/api/spotter?_=${Date.now()}`),
   getMine: () => request<{ spots: SpottedCar[] }>(`/api/spotter/mine?_=${Date.now()}`),
+  getLeaderboard: () =>
+    request<{
+      entries: Array<{
+        email: string;
+        name: string;
+        totalSpots: number;
+        totalPoints: number;
+        rareFinds: number;
+      }>;
+    }>(`/api/spotter/leaderboard?_=${Date.now()}`),
   getWeekly: () =>
     request<{
       spots: SpottedCar[];
