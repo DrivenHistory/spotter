@@ -291,6 +291,7 @@ export const spotter = {
       body: JSON.stringify(data),
     }),
   getFeed: () => request<{ spots: SpottedCar[] }>(`/api/spotter?_=${Date.now()}`),
+  getMine: () => request<{ spots: SpottedCar[] }>(`/api/spotter/mine?_=${Date.now()}`),
   getWeekly: () =>
     request<{
       spots: SpottedCar[];

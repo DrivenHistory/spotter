@@ -95,10 +95,9 @@ export function HomeTab({
     }
     (async () => {
       try {
-        const { spots } = await spotter.getFeed();
-        const mine = spots.filter((s) => s.spotterEmail.toLowerCase() === user.email.toLowerCase());
-        setCars(mine);
-        cacheSet(cacheKey, mine);
+        const { spots } = await spotter.getMine();
+        setCars(spots);
+        cacheSet(cacheKey, spots);
       } catch { /* ignore */ }
       setLoading(false);
     })();
@@ -187,10 +186,9 @@ export function HomeTab({
     <PullToRefresh className="h-full overflow-y-auto scrollbar-hide relative" onRefresh={async () => {
       if (!user) return;
       try {
-        const { spots } = await spotter.getFeed();
-        const mine = spots.filter((s) => s.spotterEmail.toLowerCase() === user.email.toLowerCase());
-        setCars(mine);
-        cacheSet(`feed_${user.email}`, mine);
+        const { spots } = await spotter.getMine();
+        setCars(spots);
+        cacheSet(`feed_${user.email}`, spots);
       } catch { /* ignore */ }
     }}>
       {/* Hidden gallery input */}
